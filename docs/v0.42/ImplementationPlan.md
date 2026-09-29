@@ -4,229 +4,92 @@
 
 v0.42 is the first pre-v1.0 implementation release of GoCBus.
 
-The purpose of this release is to establish the core C-Bus-to-MQTT gateway architecture and prove the critical path from C-Bus traffic through a state engine to Home Assistant-compatible MQTT.
+GoCBus is a **Go translation of libcbus protocol behaviour, followed by deliberate architectural improvement**. libcbus is the reference implementation and source of protocol knowledge; it is not a runtime dependency and this is not a libcbus integration layer.
 
-This document is the gold-standard implementation plan for v0.42. It should be followed unless new evidence makes part of it materially wrong. Any variation must be recorded in `ImplementationState.md`.
+This document is the gold-standard implementation plan. Deviations must be recorded in `ImplementationState.md`.
 
-## Release goals
+## Locked binary name
 
-v0.42 should establish:
+`GoCBus` — case intentional.
 
-1. Direct communication with Clipsal C-Bus PCI/CNI hardware without C-Gate.
-2. Reliable receive-side framing and protocol decoding.
-3. Typed Lighting events for ON, OFF and RAMP.
-4. C-Bus status interrogation and startup synchronisation.
-5. A state engine that distinguishes UNKNOWN from known state.
-6. MQTT publishing and commands.
-7. Home Assistant MQTT Discovery support.
-8. Recovery from C-Bus, MQTT and process restarts.
-9. Diagnostics good enough to understand protocol and state failures.
-
-## Architecture
-
-The intended data flow is:
+## Locked package responsibilities
 
 ```text
-C-Bus PCI / CNI
-      |
-      v
-  Transport
-      |
-      v
-   Framing
-      |
-      v
-C-Bus Protocol
-      |
-      v
- Typed Events
-      |
-      v
- State Engine
-      |
-      v
-    MQTT
-      |
-      v
-Home Assistant
+cmd/
+  GoCBus/
+
+internal/
+  capture/
+  transport/
+  wire/
+  protocol/
+  lighting/
+  status/
+  state/
+  mqtt/
+  homeassistant/
+  passthrough/
+  runtime/
+  control/
 ```
 
-The protocol implementation must remain independent of MQTT and Home Assistant.
+Directories need only be created when their owning slice is implemented. Responsibility boundaries are locked unless an agreed design variation is recorded.
 
-## Implementation slices
+## Runtime model
 
-### Slice 1 - Transport and raw receive
+GoCBus runs in the foreground by default and behaves cleanly under an external service manager. Daemon/service packaging is secondary. Runtime/C-Bus lifecycle state is authoritative and includes DOWN, CONNECTING, INITIALISING, SYNCING, UP, PASSTHROUGH, DEGRADED and ERROR.
 
-Goal:
+## Release slices
+
+1. [v0.42.1 - Foundation](slices/v0.42.1-design.md) - [implementation prompt](slices/v0.42.1-implementation-prompt.md)
+2. [v0.42.2 - Transport](slices/v0.42.2-design.md) - [implementation prompt](slices/v0.42.2-implementation-prompt.md)
+3. [v0.42.3 - Wire and framing](slices/v0.42.3-design.md) - [implementation prompt](slices/v0.42.3-implementation-prompt.md)
+4. [v0.42.4 - Protocol packets](slices/v0.42.4-design.md) - [implementation prompt](slices/v0.42.4-implementation-prompt.md)
+5. [v0.42.5 - Lighting receive](slices/v0.42.5-design.md) - [implementation prompt](slices/v0.42.5-implementation-prompt.md)
+6. [v0.42.6 - Lighting transmit and PCI initialisation](slices/v0.42.6-design.md) - [implementation prompt](slices/v0.42.6-implementation-prompt.md)
+7. [v0.42.7 - Status and MMI](slices/v0.42.7-design.md) - [implementation prompt](slices/v0.42.7-implementation-prompt.md)
+8. [v0.42.8 - State engine](slices/v0.42.8-design.md) - [implementation prompt](slices/v0.42.8-implementation-prompt.md)
+9. [v0.42.9 - MQTT gateway](slices/v0.42.9-design.md) - [implementation prompt](slices/v0.42.9-implementation-prompt.md)
+10. [v0.42.10 - Home Assistant](slices/v0.42.10-design.md) - [implementation prompt](slices/v0.42.10-implementation-prompt.md)
+11. [v0.42.11 - Maintenance passthrough](slices/v0.42.11-design.md) - [implementation prompt](slices/v0.42.11-implementation-prompt.md)
+12. [v0.42.12 - Runtime and configuration](slices/v0.42.12-design.md) - [implementation prompt](slices/v0.42.12-implementation-prompt.md)
+13. [v0.42.13 - Operational control and status](slices/v0.42.13-design.md) - [implementation prompt](slices/v0.42.13-implementation-prompt.md)
+14. [v0.42.14 - Hardening and release readiness](slices/v0.42.14-design.md) - [implementation prompt](slices/v0.42.14-implementation-prompt.md)
+
+Each design file is the local design contract. Its implementation prompt starts the coding session for that slice.
+
+## State synchronisation
+
+Receive live traffic before status interrogation. Groups begin UNKNOWN. Binary/level status replies establish state while live SAL continues. Older snapshot information must never overwrite a newer live event.
+
+## Maintenance passthrough
+
+v0.42 deliberately avoids simultaneous virtual-CNI multiplexing.
 
 ```text
-connect -> receive bytes -> log/capture raw traffic
+Normal:
+Physical C-Bus <-> GoCBus <-> MQTT / Home Assistant
+
+Passthrough:
+Physical C-Bus <-> GoCBus TCP bridge <-> C-Gate / Toolkit
 ```
 
-Deliverables:
+Normal C-Bus processing is suspended during passthrough. On exit GoCBus reclaims and reinitialises the interface and performs a full state resynchronisation.
 
-- Serial PCI transport.
-- TCP CNI transport.
-- Connection lifecycle.
-- Raw RX/TX diagnostics.
-- Capture/replay format suitable for tests.
+## Operational control
 
-Exit criteria:
+MQTT/Home Assistant expose useful controls rather than every internal knob: passthrough, debug/raw logging, force-resync and safe reconnect controls. Status includes the C-Bus/runtime lifecycle state and useful health timestamps/counters.
 
-- GoCBus can connect to a real or replayed C-Bus endpoint.
-- Incoming traffic can be captured without interpretation.
-- Disconnects are detected cleanly.
+## Deliberate non-goals
 
-### Slice 2 - Framing and Lighting decode
-
-Goal:
-
-```text
-receive bytes -> frame packets -> decode Lighting ON/OFF/RAMP -> emit typed events
-```
-
-Deliverables:
-
-- Incremental receive buffer.
-- Packet boundary detection.
-- Checksum handling where applicable.
-- Parser resynchronisation after malformed input.
-- Typed Lighting ON event.
-- Typed Lighting OFF event.
-- Typed Lighting RAMP event.
-- Unknown packet preservation/logging.
-
-Exit criteria:
-
-- Recorded traffic can be replayed into deterministic typed Lighting events.
-- Fragmented and combined reads are handled correctly.
-- Invalid data does not permanently desynchronise the parser.
-
-### Slice 3 - Commands and confirmations
-
-Deliverables:
-
-- Lighting ON command.
-- Lighting OFF command.
-- Lighting RAMP command.
-- Terminate-ramp where practical.
-- Confirmation handling.
-- Send pacing/back-pressure where required by the PCI.
-
-Exit criteria:
-
-- Commands can be sent to real hardware and confirmed or failed explicitly.
-- The implementation does not silently lose command failures.
-
-### Slice 4 - Status/MMI and state engine
-
-This slice addresses the principal weakness identified in the old libcbus MQTT gateway.
-
-Deliverables:
-
-- Lighting status request support.
-- Binary status/MMI decode.
-- Level status/MMI decode where supported.
-- Per-group state with UNKNOWN/known distinction.
-- Merge of live SAL events with startup status replies.
-- Ordering/versioning so an older snapshot cannot overwrite a newer live event.
-- Periodic or passive reconciliation strategy.
-
-Startup flow:
-
-1. Connect and initialise.
-2. Start the receive loop immediately.
-3. Mark state UNKNOWN.
-4. Request Lighting binary status.
-5. Request Lighting level status where supported.
-6. Merge replies with live events.
-7. Expose each group as soon as its state becomes known.
-8. Continue reconciliation after startup.
-
-Exit criteria:
-
-- Restarting GoCBus establishes current Lighting state without waiting for someone to press every switch.
-- A live state change during startup cannot be overwritten by stale snapshot data.
-
-### Slice 5 - MQTT gateway
-
-Deliverables:
-
-- MQTT connection lifecycle.
-- State publication.
-- Command subscription.
-- Availability state.
-- Retained-state strategy.
-- Mapping between C-Bus group addresses and MQTT entities.
-
-Exit criteria:
-
-- C-Bus Lighting changes appear through MQTT.
-- MQTT commands produce C-Bus commands.
-- Reconnects do not cause retained stale state to be treated as authoritative.
-
-### Slice 6 - Home Assistant integration
-
-Deliverables:
-
-- Home Assistant MQTT Discovery.
-- Lighting brightness support.
-- Stable entity identifiers.
-- Availability reporting.
-- Sensible naming/configuration mechanism.
-
-Exit criteria:
-
-- Home Assistant discovers configured C-Bus Lighting groups.
-- HA controls and displayed state remain consistent with physical C-Bus operation.
-
-### Slice 7 - Hardening
-
-Deliverables:
-
-- Reconnect testing.
-- Long-running soak testing.
-- Startup race tests.
-- Malformed-frame tests.
-- Metrics/counters for parser and transport failures.
-- Documentation of unsupported protocol areas.
-- Packaging/service instructions as appropriate.
-
-## Testing principles
-
-Use libcbus as a behavioural reference, not as an architecture to translate.
-
-Where practical:
-
-- Replay identical captures through libcbus and GoCBus and compare logical events.
-- Split each known frame at every possible byte boundary.
-- Combine multiple frames into one read.
-- Inject corrupt frames and noise.
-- Test startup status replies interleaved with live SAL.
-- Test C-Bus reconnects.
-- Test MQTT reconnects.
-- Test restart while lights are already on.
-- Test ramps and terminate-ramp.
-
-## Deliberate non-goals for v0.42
-
-- Replacing C-Bus Toolkit.
-- Reimplementing C-Gate.
-- Supporting every C-Bus application.
-- Building a commissioning user interface.
-- Premature generic frameworks or plugin systems.
-
-Lighting working reliably is more valuable than a beautiful abstraction for applications that do not yet exist.
+- Replacing Toolkit or reimplementing C-Gate.
+- Every C-Bus application.
+- Full simultaneous GoCBus/C-Gate virtual-CNI multiplexing.
+- CNI discovery unless real usage proves it necessary.
+- Premature plugin/framework architecture.
 
 ## Change control
 
-This plan is authoritative for v0.42.
+When evidence breaks the plan: record it in `ImplementationState.md`, describe the variation and reason, agree the change, then update the relevant design. Do not silently drift.
 
-If implementation reveals that a design assumption is wrong:
-
-1. Record the discovery in `ImplementationState.md`.
-2. Describe the required variation and reason.
-3. Update this plan only when the new direction has been agreed.
-4. Do not silently drift from the plan.
-
-Whole-earth rupture exemptions will be assessed on their merits.
+Whole-earth rupture exemptions remain available.
