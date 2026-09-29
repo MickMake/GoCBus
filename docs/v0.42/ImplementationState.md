@@ -3,7 +3,7 @@
 ## Current status
 
 **Release:** v0.42  
-**Phase:** Planning / pre-implementation  
+**Phase:** Detailed slice design / pre-implementation  
 **Implementation status:** Not yet started
 
 The migration design has been drafted and the v0.42 implementation plan is being established before production code is written.
@@ -93,3 +93,8 @@ connect -> receive bytes -> log/capture raw traffic
 ```
 
 Before coding, inspect the libcbus files required for that slice, verify the current repository state, propose the implementation branch, and stop for approval.
+
+
+## Slice design status
+
+Fourteen implementation slices are now defined under `docs/v0.42/slices/`, each with a design contract and implementation prompt. Binary name is locked as `GoCBus`. Package responsibility boundaries, foreground-first runtime behaviour, maintenance passthrough, runtime status state machine and operational MQTT/HA controls are included in the v0.42 plan.
