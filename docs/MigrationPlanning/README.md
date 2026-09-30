@@ -91,10 +91,10 @@ The state engine should consume protocol events and status information and maint
 
 The intended startup flow is:
 
-1. Open the PCI/CNI transport.
-2. Initialise the interface.
-3. Initialise group state as UNKNOWN.
-4. Start receiving C-Bus traffic immediately.
+1. Initialise group state as UNKNOWN and attach the state engine's Lighting event handler before enabling reception.
+2. Open the PCI/CNI transport and start transport/protocol reception with the handler already attached.
+3. Initialise the interface while processing initialisation replies and interleaved live Lighting events.
+4. Begin status synchronisation without clearing state established by events received during initialisation.
 5. Request Lighting binary status/MMI.
 6. Request Lighting level status/MMI where supported.
 7. Merge status replies with live SAL events received during synchronisation.
@@ -109,11 +109,13 @@ The exact MMI/status behaviour and bus load should be verified against real hard
 
 Before protocol work begins, Slice 1 establishes the minimal `GoCBus` executable/configuration spine: config loading, validation, immediately useful CLI overrides and the common test/capture primitives. Configuration should grow only as later slices require it; this is not a request to build a configuration framework in advance.
 
-The first useful vertical slice is:
+The first useful live vertical milestone, completed in Slice 6 after Slice 5 proves replay decoding, is:
 
 ```text
 connect -> receive raw frames -> decode Lighting ON/OFF/RAMP -> emit typed Go events
 ```
+
+Slice 2 may capture an already configured interface, but must record that setup assumption. Each slice extends the existing executable where meaningful; Slice 12 consolidates the runtime rather than postponing all integration. See the implementation plan for release-cut readiness gates.
 
 After that:
 
