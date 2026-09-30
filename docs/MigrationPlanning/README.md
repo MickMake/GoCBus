@@ -91,10 +91,10 @@ The state engine should consume protocol events and status information and maint
 
 The intended startup flow is:
 
-1. Open the PCI/CNI transport.
-2. Start transport/protocol reception as needed to consume initialisation replies, then initialise the interface.
-3. Initialise group state as UNKNOWN.
-4. Admit live Lighting events to the state engine immediately; do not reset state after admitting events.
+1. Initialise group state as UNKNOWN and attach the state engine's Lighting event handler before enabling reception.
+2. Open the PCI/CNI transport and start transport/protocol reception with the handler already attached.
+3. Initialise the interface while processing initialisation replies and interleaved live Lighting events.
+4. Begin status synchronisation without clearing state established by events received during initialisation.
 5. Request Lighting binary status/MMI.
 6. Request Lighting level status/MMI where supported.
 7. Merge status replies with live SAL events received during synchronisation.
