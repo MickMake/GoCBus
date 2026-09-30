@@ -45,6 +45,12 @@ The initial implementation is focused on the C-Bus Lighting application and esta
 
 See [docs/MigrationPlanning](docs/MigrationPlanning) for the design and migration planning.
 
+## Licence
+
+GoCBus is licensed under the **GNU General Public License version 3** (GPLv3). See [LICENSE](LICENSE).
+
+GoCBus is informed by and migrates behaviour from Michael Farrell's `libcbus`, which is licensed under the GNU Lesser General Public License version 3 or later (LGPL-3.0-or-later).
+
 ## Acknowledgements
 
 GoCBus originated from the work in [micolous/cbus](https://github.com/micolous/cbus) (`libcbus`) by Michael Farrell.

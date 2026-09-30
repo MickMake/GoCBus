@@ -17,6 +17,7 @@ The migration design has been drafted and the v0.42 implementation plan is being
 - Existing startup/state synchronisation weakness identified in the Python MQTT gateway.
 - Migration planning documentation created.
 - v0.42 implementation structure created.
+- GPLv3 licensing established for GoCBus; libcbus LGPL3+ attribution retained.
 
 ## Current design decisions
 
@@ -28,6 +29,12 @@ The migration design has been drafted and the v0.42 implementation plan is being
 - Startup status data must not overwrite newer live events.
 - Use libcbus as a behavioural reference rather than perform a line-for-line port.
 - Build in small vertical slices.
+- Pin the v0.42 libcbus behavioural reference to commit `cc0bdf3a25bd5646dd2d8e7d88a46fcd198f53a1`.
+- Establish minimal executable/configuration bootstrap in Slice 1 and extend configuration only as later slices require it.
+- Begin opt-in real-hardware integration testing in Slice 2; default tests remain deterministic and hardware-independent.
+- Treat the lifecycle enum as C-Bus lifecycle state; MQTT connection state is separate.
+- Preserve responsibility boundaries while allowing package topology to simplify when implementation evidence supports it.
+- The v0.42 roadmap may be cut into a release after any useful stable completed slice; remaining slices may roll forward.
 
 ## Behavioural deviations from libcbus
 
@@ -57,7 +64,9 @@ These are not necessarily defects. They are implementation questions that requir
 
 - Confirm binary and level status response behaviour against real hardware.
 - Measure startup synchronisation timing rather than assuming a fixed duration.
-- Define ordering/version rules for status snapshots interleaved with live SAL events.
+- Validate the planned generation/dirty rule: a live SAL event received after a sync generation begins must prevent status data from that generation overwriting the group unless protocol evidence provides stronger ordering.
+- Lock the canonical state identity before Slice 8; a bare group address must not be assumed globally unique and network/application/group context must be preserved as required by the protocol model.
+- Validate reconnect publication semantics: last-known values may be retained for diagnostics, but after C-Bus loss they are stale/non-authoritative until new live/status evidence confirms them.
 
 ### Ramps
 
@@ -70,7 +79,8 @@ These are not necessarily defects. They are implementation questions that requir
 ### Confirmation handling
 
 - libcbus notes that confirmation codes require more complete handling.
-- Determine the minimum reliable command/confirmation model for GoCBus.
+- Determine the minimum reliable command/confirmation model for GoCBus, including allocation, matching, timeout and reconnect behaviour.
+- A successful PCI/protocol confirmation is not automatically proof of final load/group state; authoritative state changes require observed SAL/status evidence or another explicitly validated protocol guarantee.
 
 ### Unsupported messages
 
@@ -103,10 +113,10 @@ Any future variation must record:
 Begin Slice 1 from `ImplementationPlan.md`:
 
 ```text
-foundation primitives -> checksum/validation helpers -> capture/replay scaffolding -> deterministic fixtures/tests
+minimal GoCBus/config bootstrap -> foundation primitives -> checksum/validation helpers -> capture/replay scaffolding -> deterministic fixtures/tests
 ```
 
-Transport connection work begins in Slice 2. Before coding, inspect the libcbus files required for Slice 1, verify the current repository state, propose the implementation branch, and stop for approval.
+Transport connection work and the opt-in real-hardware integration harness begin in Slice 2. Before coding, inspect the pinned libcbus files required for Slice 1, verify the current repository state, propose the implementation branch, and stop for approval.
 
 
 ## Slice design status

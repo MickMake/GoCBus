@@ -6,6 +6,8 @@ GoCBus is a Go implementation of a direct Clipsal C-Bus to MQTT gateway, with sp
 
 The project began as a migration from Michael Farrell's `micolous/cbus` (`libcbus`) Python implementation. libcbus is the primary behavioural baseline for the first GoCBus implementation. GoCBus should preserve proven protocol behaviour unless there is clear evidence that the behaviour is wrong, incomplete, or prevents the project from meeting its reliability goals. Implementation structure may be changed freely where required to make the code idiomatic Go; behaviour should not change merely because a different design appears cleaner.
 
+The v0.42 behavioural reference is pinned to libcbus commit `cc0bdf3a25bd5646dd2d8e7d88a46fcd198f53a1`. That reference should not move silently during the migration; any change of reference must be explicit and recorded.
+
 ## Primary goals
 
 - Communicate directly with Clipsal C-Bus PCI/CNI hardware without C-Gate.
@@ -79,6 +81,9 @@ The state engine should consume protocol events and status information and maint
 - Live SAL events should be processed immediately.
 - Startup status interrogation must not block the receive loop.
 - A startup snapshot must never overwrite a newer live event.
+- Synchronisation attempts are generation-scoped. If a group receives a live SAL event after a synchronisation generation begins, status data from that generation must not overwrite that live event unless protocol evidence provides a stronger ordering guarantee.
+- A bare group address must not be assumed globally unique; state identity must preserve the C-Bus context required to distinguish network/application/group identity as the implementation exposes it.
+- On C-Bus disconnect, a last-known value may be retained for diagnostics, but it is no longer current/authoritative until confirmed by new live or status evidence.
 - State should be periodically reconcilable rather than assuming no packets are ever lost.
 - For ramps, distinguish the requested target from a definitely known instantaneous level.
 
@@ -101,6 +106,8 @@ The intended startup flow is:
 The exact MMI/status behaviour and bus load should be verified against real hardware and available Clipsal documentation rather than assumed from the Python implementation. Hardware verification is used to validate migrated behaviour and resolve uncertainty; it should not be used as an excuse to redesign behaviour that libcbus already handles correctly.
 
 ## Initial implementation scope
+
+Before protocol work begins, Slice 1 establishes the minimal `GoCBus` executable/configuration spine: config loading, validation, immediately useful CLI overrides and the common test/capture primitives. Configuration should grow only as later slices require it; this is not a request to build a configuration framework in advance.
 
 The first useful vertical slice is:
 
@@ -132,21 +139,21 @@ After that:
 - Level status/MMI parsing
 - Preservation/logging of unsupported messages
 
-## Suggested Go package boundaries
+## Suggested Go responsibility boundaries
 
 ```text
-transport/   serial PCI and TCP CNI connections
-frame/       buffering, framing, checksums and resynchronisation
-protocol/    C-Bus packet types and SAL/CAL encoding/decoding
-lighting/    typed Lighting events and commands
-state/       known/unknown group state and reconciliation
-capture/     raw traffic capture/replay helpers
-
-cmd/
-  gocbus-mqtt/   MQTT/Home Assistant gateway
+cmd/GoCBus/         executable entry point
+internal/runtime/   minimal configuration/bootstrap, later full lifecycle integration
+internal/capture/   raw traffic capture/replay helpers
+internal/transport/ serial PCI and TCP CNI connections
+internal/wire/      buffering, framing, checksums and resynchronisation
+internal/protocol/  C-Bus packet structures and encoding/decoding
+internal/lighting/  typed Lighting events and commands
+internal/status/    Lighting status/MMI handling
+internal/state/     known/unknown/stale group state and reconciliation
 ```
 
-This is a planning layout, not a commitment to manufacture packages before they are needed. Prefer a small package structure until real boundaries become obvious.
+These are responsibility boundaries, not a promise to manufacture one package per heading. Prefer a small package structure and simplify topology when implementation evidence supports it.
 
 ## Testing strategy
 
@@ -171,6 +178,8 @@ Useful tests include:
 
 Useful diagnostics should include raw RX/TX frames, decoded messages, state transitions, reconciliation reasons, malformed-frame counters and unknown packet capture.
 
+Real-hardware validation begins with the Transport slice through an explicit opt-in integration harness. Hardware tests must never run as part of the default deterministic unit-test suite. The same harness should be extended by later slices for framing, Lighting transmit, status/MMI and synchronisation validation rather than creating a second application.
+
 ## Deliberate non-goals for the first version
 
 - Reimplementing C-Gate.
@@ -185,7 +194,9 @@ Get Lighting working reliably first.
 
 - Repository: https://github.com/micolous/cbus
 - Project: libcbus
-- Reference commit reviewed during initial planning: `cc0bdf3a25bd5646dd2d8e7d88a46fcd198f53a1`
+- Pinned behavioural reference commit for v0.42: `cc0bdf3a25bd5646dd2d8e7d88a46fcd198f53a1`
+
+The pinned reference should move only by an explicit migration-planning decision. libcbus identifies itself as LGPL-3.0-or-later; GoCBus is licensed GPLv3.
 
 Important reference areas include:
 
