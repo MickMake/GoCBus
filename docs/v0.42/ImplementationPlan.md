@@ -4,7 +4,7 @@
 
 v0.42 is the first pre-v1.0 implementation release of GoCBus.
 
-GoCBus is a **Go translation of libcbus protocol behaviour, followed by deliberate architectural improvement**. libcbus is the reference implementation and source of protocol knowledge; it is not a runtime dependency and this is not a libcbus integration layer.
+v0.42 is a **behaviour-first Go migration of the libcbus functionality required for a reliable C-Bus Lighting to MQTT/Home Assistant gateway**. The default rule is behavioural compatibility with libcbus. GoCBus may use different internal structure where that is more idiomatic in Go, but observable protocol behaviour should remain compatible unless a deviation is explicitly required to fix an identified defect, reliability problem, or state-synchronisation weakness. libcbus is the primary implementation reference; Clipsal/Schneider protocol documentation and real hardware observations may override it where evidence shows that libcbus is wrong or incomplete.
 
 This document is the gold-standard implementation plan. Deviations must be recorded in `ImplementationState.md`.
 
@@ -12,7 +12,7 @@ This document is the gold-standard implementation plan. Deviations must be recor
 
 `GoCBus` — case intentional.
 
-## Locked package responsibilities
+## Planned package responsibilities
 
 ```text
 cmd/
@@ -33,13 +33,29 @@ internal/
   control/
 ```
 
-Directories need only be created when their owning slice is implemented. Responsibility boundaries are locked unless an agreed design variation is recorded.
+Directories need only be created when their owning slice is implemented. These boundaries express intended responsibility, not immutable package topology. A slice may adjust package boundaries where implementation evidence shows that a simpler Go structure is preferable, provided responsibility separation is preserved and the variation is recorded in `ImplementationState.md`.
+
+## Behavioural change policy
+
+### Compatibility-preserving migration
+
+This is the default. Reproduce proven libcbus observable behaviour using idiomatic Go.
+
+### Required corrective change
+
+Allowed when supported by evidence, including startup/state synchronisation defects, reconnect/recovery defects, incomplete confirmation handling, malformed-input handling, known protocol errors, or behaviour contradicted by hardware/protocol documentation. These changes must be documented in `ImplementationState.md`.
+
+### Deferred enhancement
+
+Do not include behaviour merely because it would be cleaner or more general. New C-Bus applications, speculative abstractions, plugin frameworks, broad protocol redesign, expanded discovery mechanisms and unrelated operational features should wait until the migrated behaviour is working and verified.
 
 ## Runtime model
 
 GoCBus runs in the foreground by default and behaves cleanly under an external service manager. Daemon/service packaging is secondary. Runtime/C-Bus lifecycle state is authoritative and includes DOWN, CONNECTING, INITIALISING, SYNCING, UP, PASSTHROUGH, DEGRADED and ERROR.
 
 ## Release slices
+
+Each slice should migrate the minimum libcbus behaviour required for that slice. Do not redesign adjacent behaviour unless the current slice cannot be completed reliably without doing so.
 
 1. [v0.42.1 - Foundation](slices/v0.42.1-design.md) - [implementation prompt](slices/v0.42.1-implementation-prompt.md)
 2. [v0.42.2 - Transport](slices/v0.42.2-design.md) - [implementation prompt](slices/v0.42.2-implementation-prompt.md)
@@ -59,6 +75,8 @@ GoCBus runs in the foreground by default and behaves cleanly under an external s
 Each design file is the local design contract. Its implementation prompt starts the coding session for that slice.
 
 ## State synchronisation
+
+State synchronisation is an intentional GoCBus behavioural improvement over the current libcbus MQTT gateway and is therefore not constrained to reproduce its startup behaviour.
 
 Receive live traffic before status interrogation. Groups begin UNKNOWN. Binary/level status replies establish state while live SAL continues. Older snapshot information must never overwrite a newer live event.
 

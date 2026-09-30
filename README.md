@@ -8,9 +8,21 @@ The aim is to provide a small, reliable and maintainable way to integrate a C-Bu
 
 GoCBus began as a Go conversion of Michael Farrell's [libcbus](https://github.com/micolous/cbus) Python project.
 
-Rather than remaining a direct port, GoCBus is intended to build on that work and improve reliability, state synchronisation and integration with MQTT and Home Assistant.
+GoCBus is being developed as a behaviour-first migration of that work into idiomatic Go, with deliberate improvements where the existing behaviour has an identified reliability or state-synchronisation weakness.
 
 The original libcbus project remains an important reference for the C-Bus protocol implementation.
+
+## Implementation philosophy
+
+GoCBus is intentionally being developed as a behaviour-first migration of libcbus into idiomatic Go.
+
+Where libcbus already implements a C-Bus protocol behaviour successfully, GoCBus should reproduce that observable behaviour before attempting to improve it.
+
+The goal is not a line-for-line Python translation. Python-specific structure, asyncio patterns and class hierarchies should not be preserved merely for familiarity.
+
+Behavioural changes are made deliberately and should be limited to obvious defects, missing reliability behaviour, state-synchronisation problems, reconnect/recovery issues, or architecture that prevents the stated GoCBus goals.
+
+Other enhancements should be deferred until the migrated behaviour is working and verified.
 
 ## Goals
 

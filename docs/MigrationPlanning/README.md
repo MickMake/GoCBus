@@ -4,7 +4,7 @@
 
 GoCBus is a Go implementation of a direct Clipsal C-Bus to MQTT gateway, with specific support for the Home Assistant MQTT framework.
 
-The project began as a migration from Michael Farrell's `micolous/cbus` (`libcbus`) Python implementation. The intention is not to translate Python line-for-line. libcbus provides the protocol knowledge and behavioural reference; GoCBus should improve the architecture where experience with the existing gateway has exposed weaknesses.
+The project began as a migration from Michael Farrell's `micolous/cbus` (`libcbus`) Python implementation. libcbus is the primary behavioural baseline for the first GoCBus implementation. GoCBus should preserve proven protocol behaviour unless there is clear evidence that the behaviour is wrong, incomplete, or prevents the project from meeting its reliability goals. Implementation structure may be changed freely where required to make the code idiomatic Go; behaviour should not change merely because a different design appears cleaner.
 
 ## Primary goals
 
@@ -15,6 +15,19 @@ The project began as a migration from Michael Farrell's `micolous/cbus` (`libcbu
 - Support Home Assistant MQTT Discovery.
 - Recover cleanly after process, C-Bus, MQTT or network interruptions.
 - Keep the protocol implementation usable independently of MQTT and Home Assistant.
+
+## Migration rules
+
+For each migrated behaviour:
+
+1. Identify the relevant libcbus implementation.
+2. Capture or reproduce its observable input/output behaviour.
+3. Add Go tests for that behaviour.
+4. Implement the smallest idiomatic Go equivalent.
+5. Verify against libcbus fixtures and, where practical, real hardware.
+6. Record any intentional behavioural difference.
+
+Protocol documentation and real hardware observations take precedence when they demonstrate that libcbus behaviour is incorrect or incomplete.
 
 ## Key finding from libcbus
 
@@ -75,8 +88,8 @@ The intended startup flow is:
 
 1. Open the PCI/CNI transport.
 2. Initialise the interface.
-3. Start receiving C-Bus traffic immediately.
-4. Initialise group state as UNKNOWN.
+3. Initialise group state as UNKNOWN.
+4. Start receiving C-Bus traffic immediately.
 5. Request Lighting binary status/MMI.
 6. Request Lighting level status/MMI where supported.
 7. Merge status replies with live SAL events received during synchronisation.
@@ -85,7 +98,7 @@ The intended startup flow is:
 10. Continue processing live SAL events.
 11. Use later status reports and/or controlled periodic status requests for reconciliation.
 
-The exact MMI/status behaviour and bus load should be verified against real hardware and available Clipsal documentation rather than assumed from the Python implementation.
+The exact MMI/status behaviour and bus load should be verified against real hardware and available Clipsal documentation rather than assumed from the Python implementation. Hardware verification is used to validate migrated behaviour and resolve uncertainty; it should not be used as an excuse to redesign behaviour that libcbus already handles correctly.
 
 ## Initial implementation scope
 
@@ -137,7 +150,11 @@ This is a planning layout, not a commitment to manufacture packages before they 
 
 ## Testing strategy
 
-Use libcbus as a behavioural reference, not an architecture to reproduce.
+Use libcbus as the behavioural baseline, not an architecture to reproduce.
+
+### Differential migration testing
+
+Where practical, present the same input to libcbus and GoCBus and compare their logical outputs. Differences are failures unless the difference is intentional, the reason is documented, and the GoCBus behaviour is supported by protocol documentation or hardware evidence.
 
 Useful tests include:
 
