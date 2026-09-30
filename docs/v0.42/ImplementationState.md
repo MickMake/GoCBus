@@ -29,6 +29,20 @@ The migration design has been drafted and the v0.42 implementation plan is being
 - Use libcbus as a behavioural reference rather than perform a line-for-line port.
 - Build in small vertical slices.
 
+## Behavioural deviations from libcbus
+
+Intentional changes from libcbus observable behaviour must be recorded here.
+
+Each entry should include:
+
+1. Relevant libcbus behaviour and source reference.
+2. GoCBus behaviour.
+3. Why the difference is required.
+4. Evidence supporting the change.
+5. Tests covering the difference.
+
+Expected v0.42 deviations currently include reliable startup/current-state synchronisation, fuller confirmation tracking, and reconnect/state recovery behaviour.
+
 ## Known issues / questions to resolve
 
 These are not necessarily defects. They are implementation questions that require validation during v0.42.

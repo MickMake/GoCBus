@@ -16,7 +16,11 @@ Build a small, dependable Go implementation that talks directly to C-Bus PCI/CNI
 
 Start with the Lighting application. Do not attempt to recreate C-Gate, Toolkit or every C-Bus application.
 
-Use libcbus as a protocol and behavioural reference, not as an architecture to translate line-for-line.
+Use libcbus as the primary behavioural baseline. For behaviour already implemented and proven in libcbus, reproduce the same observable result before attempting improvements.
+
+Do not translate Python class structure, asyncio organisation or implementation patterns line-for-line. Translate behaviour into the simplest idiomatic Go structure that preserves it.
+
+Do not change protocol behaviour merely because another design appears cleaner. Where GoCBus intentionally differs from libcbus, document the difference, reason and supporting evidence in `ImplementationState.md`.
 
 ## Important state-synchronisation issue
 
@@ -82,6 +86,7 @@ Before implementing code:
 1. Inspect the latest `main`.
 2. Inspect prior and currently open PRs so existing decisions are not accidentally undone.
 3. Identify the minimum libcbus files/functions needed for the next vertical slice.
-4. Identify protocol facts that still require verification.
-5. Propose the branch name and implementation plan.
-6. Stop for approval before making code changes.
+4. Identify the exact libcbus behaviour being migrated and the tests/fixtures that can demonstrate compatibility.
+5. Identify protocol facts that still require verification.
+6. Propose the branch name and implementation plan.
+7. Stop for approval before making code changes.
