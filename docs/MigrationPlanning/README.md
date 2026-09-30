@@ -88,8 +88,8 @@ The intended startup flow is:
 
 1. Open the PCI/CNI transport.
 2. Initialise the interface.
-3. Start receiving C-Bus traffic immediately.
-4. Initialise group state as UNKNOWN.
+3. Initialise group state as UNKNOWN.
+4. Start receiving C-Bus traffic immediately.
 5. Request Lighting binary status/MMI.
 6. Request Lighting level status/MMI where supported.
 7. Merge status replies with live SAL events received during synchronisation.
