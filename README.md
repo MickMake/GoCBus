@@ -47,7 +47,7 @@ See [docs/MigrationPlanning](docs/MigrationPlanning) for the design and migratio
 
 ## Licence
 
-GoCBus is licensed under the **GNU General Public License version 3** (GPL-3.0-only). See [LICENSE](LICENSE).
+GoCBus is licensed under the **GNU General Public License version 3** (GPLv3). See [LICENSE](LICENSE).
 
 GoCBus is informed by and migrates behaviour from Michael Farrell's `libcbus`, which is licensed under the GNU Lesser General Public License version 3 or later (LGPL-3.0-or-later).
 
