@@ -15,12 +15,25 @@ Before starting new implementation or documentation changes:
 
 1. Inspect the working tree without discarding or overwriting user work. Fetch `origin` and identify latest `origin/main`.
 2. Check previous local/remote work branches and PRs for merge status. If prior work is unmerged, stop and report the branch/PR. A deleted branch or closed PR alone is not proof of merge; check the PR's merged status when ancestry is ambiguous, including squash merges. If GitHub access is unavailable, report that verification is blocked rather than guessing.
-3. State the intended scope and branch name, then stop for Mick's approval before editing. Use the slice prompt's branch name when one is supplied.
+3. State the intended scope and branch name, then stop for Mick's approval before editing. Slice branches use `v0.42.<slice>-<short-description>`; use the exact branch name in the slice prompt when supplied (for example `v0.42.1-foundation`).
 4. After approval, create the branch from latest `origin/main`. Implement only the approved scope; do not start the next slice as a small extra.
 
 Approval persists for that scope. When explicitly continuing approved work or fixing its review feedback, inspect and use that existing branch/PR; its own open PR is not unrelated prior work. Do not create a fresh branch or ask for the same approval again. Stop if unexpected work or conflicting instructions prevent a safe continuation.
 
-At completion, update implementation progress/decisions when applicable, validate the change, review the diff, commit and open/update one PR against `main`. Report tests actually run, limitations and deviations. Leave merging to Mick unless explicitly instructed to merge. Never reset, clean or force-push away other work.
+Approval to implement a slice includes committing, pushing, opening its PR and addressing valid review findings on that branch. Leave merging to Mick unless explicitly instructed to merge. Never reset, clean or force-push away other work.
+
+## Completion and review loop
+
+1. Update `ImplementationState.md` as slice work starts, is implemented/validated, or becomes blocked. Record the slice, branch, actual changes, tests/results, deviations and remaining work. Before submission, describe implemented work as awaiting PR review, not merged or released. A docs-only change does not implement a slice.
+2. Validate, review the entire diff, commit and push, then create/update one PR against `main`. Keep the PR description and validation results accurate after fixes.
+3. Wait for code review to finish for the latest pushed commit, and inspect review submissions, inline threads and required checks. A green CI check, an old review, or no comments yet is not proof of a completed current review.
+4. Request/re-request the configured review when needed. For this repository's Codex review, use `@codex review` on the PR if the latest commit has no review queued/running/completed; do not spam duplicate requests. PR review requests and replies explaining fixes are part of this workflow.
+5. Assess every finding. Fix valid in-scope issues on the same branch, add relevant tests, update slice state/results, commit and push. Explain a rejected finding with evidence; ask Mick about unresolved disagreements or scope changes rather than blindly implementing every suggestion. Resolve a thread only when its concern is addressed.
+6. Repeat review and validation for the new head. Finish only when the latest head has completed review, no actionable findings remain unresolved, and required checks pass. Report the PR, reviewed commit, validation and remaining limitations; then wait for Mick to merge.
+
+While the session is active, poll review status at sensible intervals and give progress updates. If review/checks remain unavailable or pending after about ten minutes, or access/session limits prevent waiting, report the exact pending item and a resume instruction; do not claim review is complete or promise background monitoring after the session ends.
+
+Keep implementation milestones in `ImplementationState.md`; GitHub is authoritative for live review/merge status. Include the PR link in the state record on the next substantive update, or in the handoff if there is no further edit. Avoid an endless sequence of status-only commits invalidating their own reviews. On the next session, reconcile the record with the actual merge result before selecting another slice; never mark work merged speculatively.
 
 ## Implementation boundaries
 

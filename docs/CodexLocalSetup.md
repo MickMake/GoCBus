@@ -80,7 +80,7 @@ Report any missing local prerequisites, propose the specified branch and
 implementation intent, then stop for my approval before making changes.
 ```
 
-Provide the libcbus checkout path alongside the prompt. After the proposed scope/branch looks right, approve it in that session. Codex should create the branch from latest `origin/main`, implement that slice, validate it and open a PR. It must not merge or proceed to Slice 2 without the corresponding instruction.
+Provide the libcbus checkout path alongside the prompt. After the proposed scope/branch looks right, approve it in that session. Codex should create the slice branch from latest `origin/main` (for example `v0.42.1-foundation`), implement that slice, update its state, validate, commit/push and open a PR. It then waits for review and fixes valid findings as described below. It must not merge or proceed to Slice 2 without the corresponding instruction.
 
 For a fresh session continuing unfinished work:
 
@@ -135,11 +135,23 @@ The harness does not exist yet. Slice 2 must document its exact opt-in command a
 
 Default tests use fixtures/fakes and must not contact serial PCI, TCP CNI, live MQTT or physical loads. For an authorised hardware run, record the target/interface, test scope, setup assumptions, command, observations and limitations. Identify any reset or load-changing operation before running it. Do not guess a device path or scan for a target. Keep machine-specific configuration and raw captures local; commit only reviewed, sanitised fixtures with provenance.
 
-## 6. Finish and hand off
+## 6. Commit, review, fix and hand off
 
-Update implementation state for completed slice work: actual files, behaviour/fixtures, tests run, discoveries, deviations and remaining work. A docs-only setup change does not mark a release slice implemented.
+Keep `ImplementationState.md` current as work starts and changes: slice/branch, actual files, behaviour/fixtures, tests run, discoveries, deviations and remaining work. Distinguish in progress, implemented/validated with PR review outstanding, blocked, and actually merged. A docs-only setup change does not mark a release slice implemented.
 
-Review the entire PR diff and confirm no generated binaries, credentials or unrelated edits slipped in. Open/update one PR against `main`, report its link and validation results, and wait for Mick to merge. The next slice starts from the newly merged `main`, not from the previous work branch.
+Review the entire diff, commit/push and open/update one PR against `main`. Then follow the completion loop in AGENTS.md:
+
+1. Wait for the configured code review of the latest pushed commit; also inspect inline threads, review submissions and required checks.
+2. If no current review is queued/running/completed, request it. This repository uses Codex review; a PR comment containing `@codex review` requests another pass. Check for an existing run before requesting again.
+3. Fix valid findings on the same branch, run relevant validation, update slice state and PR results, then commit/push. Do not implement unjustified or out-of-scope suggestions merely to silence a reviewer; explain or escalate them.
+4. Wait for review of that new head and repeat until no actionable findings remain and required checks pass. A previous commit's clean review does not cover new changes.
+5. Hand off the PR link, reviewed commit, checks and limitations for Mick to merge. An empty checks list alone does not establish that review completed.
+
+GitHub owns live review/merge status. Add the PR link to the slice's state record on the next substantive update, or provide it in the handoff if no further edit is needed. Record implementation milestones without repeatedly pushing status-only changes to declare the same commit reviewed. Reconcile actual merged status in the next session before starting another slice.
+
+Codex waits while its local session is active. If review/checks are unavailable or still pending after about ten minutes, it should report the pending item and how to resume rather than announce completion. Resume with: `Continue the review/fix loop for PR <number> on its existing branch; inspect the latest head and reviews first.`
+
+The next slice starts from newly merged `main`, not from the previous work branch. This workflow does not auto-merge.
 
 ## Official Codex references
 
