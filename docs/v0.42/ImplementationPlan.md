@@ -8,6 +8,10 @@ v0.42 is a **behaviour-first Go migration of the libcbus functionality required 
 
 This document is the gold-standard implementation plan. Deviations must be recorded in `ImplementationState.md`.
 
+The v0.42 behavioural reference is pinned to libcbus commit `cc0bdf3a25bd5646dd2d8e7d88a46fcd198f53a1`. Do not silently follow upstream changes during implementation.
+
+The fourteen slices are the planned v0.42 roadmap, not a requirement that every slice ship under the same release tag. v0.42 may be cut after any completed slice once the implemented subset forms a useful, stable release. Unshipped slices roll forward to a later release unless implementation evidence requires their design to change.
+
 ## Locked binary name
 
 `GoCBus` — case intentional.
@@ -51,13 +55,13 @@ Do not include behaviour merely because it would be cleaner or more general. New
 
 ## Runtime model
 
-GoCBus runs in the foreground by default and behaves cleanly under an external service manager. Daemon/service packaging is secondary. Runtime/C-Bus lifecycle state is authoritative and includes DOWN, CONNECTING, INITIALISING, SYNCING, UP, PASSTHROUGH, DEGRADED and ERROR.
+GoCBus runs in the foreground by default and behaves cleanly under an external service manager. Daemon/service packaging is secondary. Minimal executable/configuration bootstrap begins in Slice 1 and is extended as later slices require settings. The lifecycle states DOWN, CONNECTING, INITIALISING, SYNCING, UP, PASSTHROUGH, DEGRADED and ERROR describe the **C-Bus lifecycle**, not every subsystem in the process. MQTT maintains its own smaller connection state so orthogonal failures are not forced into one enum.
 
 ## Release slices
 
 Each slice should migrate the minimum libcbus behaviour required for that slice. Do not redesign adjacent behaviour unless the current slice cannot be completed reliably without doing so.
 
-1. [v0.42.1 - Foundation](slices/v0.42.1-design.md) - [implementation prompt](slices/v0.42.1-implementation-prompt.md)
+1. [v0.42.1 - Foundation and minimal runtime/configuration](slices/v0.42.1-design.md) - [implementation prompt](slices/v0.42.1-implementation-prompt.md)
 2. [v0.42.2 - Transport](slices/v0.42.2-design.md) - [implementation prompt](slices/v0.42.2-implementation-prompt.md)
 3. [v0.42.3 - Wire and framing](slices/v0.42.3-design.md) - [implementation prompt](slices/v0.42.3-implementation-prompt.md)
 4. [v0.42.4 - Protocol packets](slices/v0.42.4-design.md) - [implementation prompt](slices/v0.42.4-implementation-prompt.md)
@@ -68,7 +72,7 @@ Each slice should migrate the minimum libcbus behaviour required for that slice.
 9. [v0.42.9 - MQTT gateway](slices/v0.42.9-design.md) - [implementation prompt](slices/v0.42.9-implementation-prompt.md)
 10. [v0.42.10 - Home Assistant](slices/v0.42.10-design.md) - [implementation prompt](slices/v0.42.10-implementation-prompt.md)
 11. [v0.42.11 - Maintenance passthrough](slices/v0.42.11-design.md) - [implementation prompt](slices/v0.42.11-implementation-prompt.md)
-12. [v0.42.12 - Runtime and configuration](slices/v0.42.12-design.md) - [implementation prompt](slices/v0.42.12-implementation-prompt.md)
+12. [v0.42.12 - Runtime integration and configuration completion](slices/v0.42.12-design.md) - [implementation prompt](slices/v0.42.12-implementation-prompt.md)
 13. [v0.42.13 - Operational control and status](slices/v0.42.13-design.md) - [implementation prompt](slices/v0.42.13-implementation-prompt.md)
 14. [v0.42.14 - Hardening and release readiness](slices/v0.42.14-design.md) - [implementation prompt](slices/v0.42.14-implementation-prompt.md)
 
@@ -78,7 +82,15 @@ Each design file is the local design contract. Its implementation prompt starts 
 
 State synchronisation is an intentional GoCBus behavioural improvement over the current libcbus MQTT gateway and is therefore not constrained to reproduce its startup behaviour.
 
-Receive live traffic before status interrogation. Groups begin UNKNOWN. Binary/level status replies establish state while live SAL continues. Older snapshot information must never overwrite a newer live event.
+Receive live traffic before status interrogation. Groups begin UNKNOWN. Binary/level status replies establish state while live SAL continues. Synchronisation is generation-scoped: if a group receives a live SAL event after a sync generation begins, status data from that generation cannot overwrite the live event unless protocol evidence provides a stronger ordering guarantee. A bare group number must not be treated as globally unique; the state key must preserve the C-Bus identity required to distinguish network/application/group context. On C-Bus disconnect, last-known values may remain available for diagnostics but become stale/non-authoritative until new live or status evidence confirms them.
+
+## Command confirmation semantics
+
+A successful PCI/protocol confirmation means that the command was accepted/confirmed at the interface/protocol level. It must not, by itself, be treated as proof that a physical load has reached the requested state. Authoritative Lighting state changes require live SAL/status evidence or another protocol guarantee explicitly validated against documentation/hardware.
+
+## Hardware validation
+
+An explicit opt-in real-hardware integration harness begins in Slice 2. It is extended by later slices for framing, transmit, status/MMI and synchronisation testing. Hardware tests must never run as part of the default deterministic test suite and must not grow into a second production executable.
 
 ## Maintenance passthrough
 
@@ -96,7 +108,7 @@ Normal C-Bus processing is suspended during passthrough. On exit GoCBus reclaims
 
 ## Operational control
 
-MQTT/Home Assistant expose useful controls rather than every internal knob: passthrough, debug/raw logging, force-resync and safe reconnect controls. Status includes the C-Bus/runtime lifecycle state and useful health timestamps/counters.
+MQTT/Home Assistant expose useful controls rather than every internal knob: passthrough, debug/raw logging, force-resync and safe reconnect controls. Status exposes the C-Bus lifecycle state separately from MQTT connection state, together with useful health timestamps/counters.
 
 ## Deliberate non-goals
 
@@ -111,3 +123,7 @@ MQTT/Home Assistant expose useful controls rather than every internal knob: pass
 When evidence breaks the plan: record it in `ImplementationState.md`, describe the variation and reason, agree the change, then update the relevant design. Do not silently drift.
 
 Whole-earth rupture exemptions remain available.
+
+## Licence and attribution
+
+GoCBus is licensed under GNU GPLv3. The libcbus reference project is LGPL-3.0-or-later and remains attributed to Michael Farrell. Behavioural/source reference for v0.42 remains pinned to the commit recorded above.
