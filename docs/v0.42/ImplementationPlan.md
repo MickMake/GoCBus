@@ -8,9 +8,15 @@ v0.42 is a **behaviour-first Go migration of the libcbus functionality required 
 
 This document is the gold-standard implementation plan. Deviations must be recorded in `ImplementationState.md`.
 
+libcbus is a source/behavioural reference, not a runtime dependency. GoCBus must not require Python or libcbus to run.
+
 The v0.42 behavioural reference is pinned to libcbus commit `cc0bdf3a25bd5646dd2d8e7d88a46fcd198f53a1`. Do not silently follow upstream changes during implementation.
 
 The fourteen slices are the planned v0.42 roadmap, not a requirement that every slice ship under the same release tag. v0.42 may be cut after any completed slice once the implemented subset forms a useful, stable release. Unshipped slices roll forward to a later release unless implementation evidence requires their design to change.
+
+## Document authority
+
+The root README and migration overview explain purpose and rationale. This plan governs release intent and shared rules; slice designs supply local contracts and implementation prompts execute them. `ImplementationState.md` records agreed decisions, evidence and actual progress. If these disagree, resolve the conflict through change control before implementing the disputed behaviour; a prompt must not silently override a design.
 
 ## Locked binary name
 
@@ -77,6 +83,26 @@ Each slice should migrate the minimum libcbus behaviour required for that slice.
 14. [v0.42.14 - Hardening and release readiness](slices/v0.42.14-design.md) - [implementation prompt](slices/v0.42.14-implementation-prompt.md)
 
 Each design file is the local design contract. Its implementation prompt starts the coding session for that slice.
+
+## Integration milestones and release cuts
+
+Each slice integrates its capability into the existing `GoCBus` executable where meaningful, including the minimal configuration and lifecycle plumbing it needs. Owned-area lists identify primary responsibilities, not a prohibition on that plumbing. Pure decoding may be demonstrated through replay. Do not create another production application or pull unrelated later features forward.
+
+- Slice 2 proves raw connection/capture; without PCI initialisation it must record any required interface setup assumptions.
+- Slice 5 proves Lighting decoding through replay; it does not promise self-initialising live monitoring.
+- Slice 6 establishes the first self-initialising live Lighting path using the existing receive decoder and hardware harness.
+- Slices 7-11 extend that working path. Slice 12 consolidates runtime/configuration integration rather than assembling the first usable gateway.
+- Introduce cancellation, clean shutdown and failure handling with each resource-owning slice. Slice 13 exposes existing lifecycle truth through controls/status rather than inventing it late.
+
+For any selected release cut, require:
+
+1. One runnable binary with its implemented subset, setup and limitations documented.
+2. A demonstrated integrated path and clean startup/shutdown for that subset.
+3. Passing deterministic tests and relevant failure/recovery checks for shipped capabilities.
+4. Hardware evidence for hardware-dependent claims, or an explicit unverified limitation.
+5. The applicable assembled-system checks from Slice 14, with results and remaining work recorded in `ImplementationState.md`.
+
+These gates do not require all fourteen capabilities or speculative timing/API decisions before their owning slice.
 
 ## State synchronisation
 

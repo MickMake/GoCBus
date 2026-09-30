@@ -36,6 +36,17 @@ The migration design has been drafted and the v0.42 implementation plan is being
 - Preserve responsibility boundaries while allowing package topology to simplify when implementation evidence supports it.
 - The v0.42 roadmap may be cut into a release after any useful stable completed slice; remaining slices may roll forward.
 
+## Planning revision history
+
+| Revision | Decision and reason |
+| --- | --- |
+| PR #1 (`docs/migration-planning`) | Expanded the initial seven stages into fourteen slice contracts, including exclusive maintenance passthrough and operational controls, to keep intended capabilities visible. |
+| PR #2 (`migration-planning2`) | Tightened behaviour-first migration, explicitly exempted Slice 8 state management, relaxed package topology and removed the redundant umbrella prompt to reduce accidental redesign. |
+| PR #3 (`docs/migration-planning3`) | Moved minimal bootstrap/configuration earlier, introduced early hardware validation, pinned the reference, clarified freshness/subsystem status and allowed useful stable release cuts. |
+| `docs/migration-planning4` | Clarifies integration milestones, release gates and slice-owned acceptance decisions without changing the fourteen-slice roadmap or behaviour-first intent. |
+
+These are agreed planning refinements, not evidence of completed implementation. Hardware-dependent timings and policies remain for validation in their owning slices.
+
 ## Behavioural deviations from libcbus
 
 Intentional changes from libcbus observable behaviour must be recorded here.
@@ -49,6 +60,8 @@ Each entry should include:
 5. Tests covering the difference.
 
 Expected v0.42 deviations currently include reliable startup/current-state synchronisation, fuller confirmation tracking, and reconnect/state recovery behaviour.
+
+The pinned `cbus/daemon/cmqttd.py` republishes requested state immediately after sending a command. GoCBus intentionally requires observed evidence instead; do not restore optimistic authoritative publication under the compatibility rule. Tests are due in Slices 8-9. Before Slice 9 fixes public topics/payloads, record the MQTT/HA compatibility decisions required by its design; discovery scope and entity identity must not be inferred from the Python defaults.
 
 ## Known issues / questions to resolve
 
@@ -97,9 +110,9 @@ As implementation proceeds, deferred items should be recorded here with:
 - why,
 - expected release or condition for reconsideration.
 
-## Variations from original design
+## Implementation variations from the agreed design
 
-None at present.
+None at present because implementation has not started. Planning revisions are recorded separately above.
 
 Any future variation must record:
 
