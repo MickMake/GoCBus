@@ -103,10 +103,10 @@ Any future variation must record:
 Begin Slice 1 from `ImplementationPlan.md`:
 
 ```text
-connect -> receive bytes -> log/capture raw traffic
+foundation primitives -> checksum/validation helpers -> capture/replay scaffolding -> deterministic fixtures/tests
 ```
 
-Before coding, inspect the libcbus files required for that slice, verify the current repository state, propose the implementation branch, and stop for approval.
+Transport connection work begins in Slice 2. Before coding, inspect the libcbus files required for Slice 1, verify the current repository state, propose the implementation branch, and stop for approval.
 
 
 ## Slice design status
