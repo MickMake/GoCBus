@@ -8,6 +8,7 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -18,7 +19,7 @@ import (
 
 type fakePort struct {
 	bytes.Buffer
-	closed bool
+	closed atomic.Bool
 }
 
 func (port *fakePort) SetMode(*serial.Mode) error                           { return nil }
@@ -31,7 +32,7 @@ func (port *fakePort) GetModemStatusBits() (*serial.ModemStatusBits, error) { re
 func (port *fakePort) SetReadTimeout(time.Duration) error                   { return nil }
 func (port *fakePort) Break(time.Duration) error                            { return nil }
 func (port *fakePort) Close() error {
-	port.closed = true
+	port.closed.Store(true)
 	return nil
 }
 
@@ -96,9 +97,59 @@ func TestSerialDialerClosesPortWhenCancelledDuringOpen(t *testing.T) {
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("Dial() error = %v, want context cancellation", err)
 	}
-	if !port.closed {
+	if !port.closed.Load() {
 		t.Fatal("port remained open after cancellation")
 	}
+}
+
+func TestSerialDialerReturnsWhileOpenIsBlocked(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	started := make(chan struct{})
+	release := make(chan struct{})
+	closed := make(chan struct{})
+	port := &signallingPort{closed: closed}
+	dialer := &SerialDialer{
+		Device: "/dev/test-pci",
+		open: func(string, *serial.Mode) (serial.Port, error) {
+			close(started)
+			<-release
+			return port, nil
+		},
+	}
+
+	result := make(chan error, 1)
+	go func() {
+		_, err := dialer.Dial(ctx)
+		result <- err
+	}()
+	<-started
+	cancel()
+	select {
+	case err := <-result:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("Dial() error = %v, want context cancellation", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("Dial() remained blocked after cancellation")
+	}
+
+	close(release)
+	select {
+	case <-closed:
+	case <-time.After(time.Second):
+		t.Fatal("port opened after cancellation was not closed")
+	}
+}
+
+type signallingPort struct {
+	fakePort
+	closed chan struct{}
+	once   sync.Once
+}
+
+func (port *signallingPort) Close() error {
+	port.once.Do(func() { close(port.closed) })
+	return nil
 }
 
 func TestDialersRejectMissingOrMalformedTargets(t *testing.T) {

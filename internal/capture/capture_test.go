@@ -134,3 +134,32 @@ func TestWriterSupportsConcurrentTransportTraffic(t *testing.T) {
 		t.Fatalf("record count = %d, want 20", count)
 	}
 }
+
+func TestOpenFileRestrictsExistingPermissions(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "capture.ndjson")
+	if err := os.WriteFile(path, []byte("old data"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(path, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	file, err := OpenFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := file.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if permissions := info.Mode().Perm(); permissions != 0o600 {
+		t.Fatalf("capture permissions = %04o, want 0600", permissions)
+	}
+	if info.Size() != 0 {
+		t.Fatalf("capture size = %d, want truncated file", info.Size())
+	}
+}

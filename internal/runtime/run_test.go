@@ -180,6 +180,49 @@ func TestRunTCPTransportStopsCleanlyWhenCancelledBeforeDial(t *testing.T) {
 	}
 }
 
+func TestRunAppliesTransportOverridesBeforeValidation(t *testing.T) {
+	tests := []struct {
+		name   string
+		config func(*testing.T) Config
+		args   []string
+	}{
+		{
+			name: "CLI transport satisfies capture requirement",
+			config: func(t *testing.T) Config {
+				return Config{LogLevel: "info", CapturePath: filepath.Join(t.TempDir(), "traffic.ndjson")}
+			},
+			args: []string{"-tcp", "127.0.0.1:10001"},
+		},
+		{
+			name: "CLI serial replaces invalid TCP address",
+			config: func(*testing.T) Config {
+				return Config{LogLevel: "info", TCPAddress: "stale-invalid-address"}
+			},
+			args: []string{"-serial", "/dev/test-pci"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			configPath := filepath.Join(t.TempDir(), "config.json")
+			content, err := json.Marshal(tt.config(t))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(configPath, content, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			ctx, cancel := context.WithCancel(context.Background())
+			cancel()
+			args := append([]string{"-config", configPath}, tt.args...)
+			var stdout, stderr bytes.Buffer
+			if code := RunContext(ctx, args, &stdout, &stderr); code != 0 {
+				t.Fatalf("RunContext() code = %d; stderr = %q", code, stderr.String())
+			}
+		})
+	}
+}
+
 func writeConfig(t *testing.T, config Config) string {
 	t.Helper()
 	data, err := json.Marshal(config)

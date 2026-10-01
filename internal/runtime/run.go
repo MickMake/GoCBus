@@ -83,7 +83,7 @@ func RunContext(ctx context.Context, args []string, stdout, stderr io.Writer) in
 
 	config := DefaultConfig()
 	if configPath != "" {
-		loaded, err := LoadConfig(configPath)
+		loaded, err := decodeConfig(configPath)
 		if err != nil {
 			fmt.Fprintf(stderr, "GoCBus: %v\n", err)
 			return 1
@@ -130,7 +130,7 @@ func RunContext(ctx context.Context, args []string, stdout, stderr io.Writer) in
 	var captureFile *os.File
 	var captureWriter *capture.Writer
 	if strings.TrimSpace(config.CapturePath) != "" {
-		file, err := os.OpenFile(config.CapturePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
+		file, err := capture.OpenFile(config.CapturePath)
 		if err != nil {
 			fmt.Fprintf(stderr, "GoCBus: open capture: %v\n", err)
 			return 1

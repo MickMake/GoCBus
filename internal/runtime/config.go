@@ -28,6 +28,19 @@ func DefaultConfig() Config {
 
 // LoadConfig loads one JSON object and rejects unknown fields and trailing data.
 func LoadConfig(path string) (Config, error) {
+	config, err := decodeConfig(path)
+	if err != nil {
+		return Config{}, err
+	}
+	if err := config.Validate(); err != nil {
+		return Config{}, err
+	}
+	return config, nil
+}
+
+// decodeConfig loads configuration syntax without validating the resulting
+// values. The runtime applies CLI overrides before validating the final config.
+func decodeConfig(path string) (Config, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return Config{}, fmt.Errorf("open config: %w", err)
@@ -55,9 +68,6 @@ func LoadConfig(path string) (Config, error) {
 		return Config{}, fmt.Errorf("decode config: %w", err)
 	}
 
-	if err := decoded.Validate(); err != nil {
-		return Config{}, err
-	}
 	return *decoded, nil
 }
 

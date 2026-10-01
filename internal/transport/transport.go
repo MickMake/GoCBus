@@ -26,6 +26,11 @@ type Dialer interface {
 
 type serialOpener func(string, *serial.Mode) (serial.Port, error)
 
+type serialOpenResult struct {
+	port serial.Port
+	err  error
+}
+
 // SerialDialer opens a physical C-Bus PCI using the serial settings used by
 // the pinned libcbus reference: 9600 baud, eight data bits, no parity and one
 // stop bit.
@@ -50,20 +55,37 @@ func (dialer *SerialDialer) Dial(ctx context.Context) (io.ReadWriteCloser, error
 	if open == nil {
 		open = serial.Open
 	}
-	port, err := open(dialer.Device, &serial.Mode{
-		BaudRate: PCIBaudRate,
-		DataBits: 8,
-		Parity:   serial.NoParity,
-		StopBits: serial.OneStopBit,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("open serial PCI %q: %w", dialer.Device, err)
+	resultChannel := make(chan serialOpenResult)
+	go func() {
+		port, err := open(dialer.Device, &serial.Mode{
+			BaudRate: PCIBaudRate,
+			DataBits: 8,
+			Parity:   serial.NoParity,
+			StopBits: serial.OneStopBit,
+		})
+		result := serialOpenResult{port: port, err: err}
+		select {
+		case resultChannel <- result:
+		case <-ctx.Done():
+			if port != nil {
+				_ = port.Close()
+			}
+		}
+	}()
+
+	select {
+	case <-ctx.Done():
+		return nil, fmt.Errorf("open serial PCI: %w", ctx.Err())
+	case result := <-resultChannel:
+		if result.err != nil {
+			return nil, fmt.Errorf("open serial PCI %q: %w", dialer.Device, result.err)
+		}
+		if err := ctx.Err(); err != nil {
+			_ = result.port.Close()
+			return nil, fmt.Errorf("open serial PCI: %w", err)
+		}
+		return result.port, nil
 	}
-	if err := ctx.Err(); err != nil {
-		_ = port.Close()
-		return nil, fmt.Errorf("open serial PCI: %w", err)
-	}
-	return port, nil
 }
 
 // TCPDialer opens a TCP connection to a C-Bus CNI.

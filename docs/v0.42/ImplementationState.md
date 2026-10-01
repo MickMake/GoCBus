@@ -4,21 +4,21 @@
 
 **Release:** v0.42  
 
-**Phase:** Slice 2 implementation
+**Phase:** Slice 2 PR review
 
-**Implementation status:** Slice 2 implemented and validated; awaiting PR review
+**Implementation status:** Review round 1 fixes implemented and validated; awaiting review of the latest head
 
 **Branch:** `v0.42.2-transport`
 
-**PR:** Pending
+**PR:** [#7](https://github.com/MickMake/GoCBus/pull/7)
 
-**Review round:** 0/3
+**Review round:** 1/3
 
 Slice 1 was merged in PR #6. Slice 2 implements raw serial PCI and TCP CNI
 transport, capture integration, and an explicit opt-in receive-only hardware
-harness. It is validated locally and awaits submission and independent PR
-review. No framing, packet parsing, PCI initialisation, or automatic reconnect
-policy is included.
+harness. PR review round 1 found three valid issues; their fixes are validated
+locally and await review of the latest head. No framing, packet parsing, PCI
+initialisation, or automatic reconnect policy is included.
 
 ## Completed
 
@@ -133,13 +133,15 @@ synthetic and live PCI/CNI behaviour had not been exercised.
 
 Slice: **v0.42.2 - Transport**
 
-State: **Implemented and validated; awaiting PR review**
+State: **Review round 1 fixes implemented and validated; awaiting review of the latest head**
 
 Branch: `v0.42.2-transport`
 
-PR: Pending
+PR: [#7](https://github.com/MickMake/GoCBus/pull/7)
 
-Review round: **0/3**
+Review round: **1/3**
+
+Reviewed commit: `0c747d67d785c8f94da370f8af93fea03f8bd8c6`
 
 Pinned reference verified at
 `cc0bdf3a25bd5646dd2d8e7d88a46fcd198f53a1`. Relevant reference behaviour:
@@ -205,6 +207,28 @@ Self-review found and fixed these issues before submission:
 - Live arbitrary transmit was excluded from the hardware harness because no
   target or command was authorised. Deterministic tests cover raw write and
   partial-write behaviour without risking C-Bus loads.
+
+PR review round 1/3 reviewed commit
+`0c747d67d785c8f94da370f8af93fea03f8bd8c6` and found three valid P2 issues:
+
+- Existing capture files retained broader permissions because the creation mode
+  did not apply when truncating them. Runtime and hardware capture now share an
+  opener that explicitly enforces owner-only permissions, with a regression
+  test covering a pre-existing `0644` file.
+- File configuration was fully validated before CLI transport overrides, so a
+  valid override could not replace an invalid or incomplete file value. The
+  runtime now decodes first, applies all overrides, and validates the final
+  configuration once; direct `LoadConfig` callers retain strict validation.
+- Serial cancellation could not return while the platform's synchronous open
+  call was blocked. Serial open now runs behind a context-aware handoff, returns
+  promptly on cancellation, and closes a port if the underlying open finishes
+  later. A deterministic blocking-open test covers the lifecycle.
+
+Self-review of the round-one fixes found that the initial CLI-override test used
+a relative capture path and left a test artifact in the package directory; it
+now uses a temporary path. The race suite also found the asynchronous serial
+cleanup test reading a non-atomic fake-port flag; the helper now uses an atomic
+close state. The complete validation matrix above then passed.
 
 No real serial PCI or TCP CNI was contacted. Serial driver behaviour, live
 disconnect timing, received byte traffic, and hardware capture remain

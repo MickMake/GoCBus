@@ -54,7 +54,7 @@ func TestTransportCapture(t *testing.T) {
 	}
 	defer connection.Close()
 
-	file, err := os.OpenFile(capturePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
+	file, err := capture.OpenFile(capturePath)
 	if err != nil {
 		t.Fatal(err)
 	}

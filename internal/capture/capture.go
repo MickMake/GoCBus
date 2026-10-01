@@ -8,10 +8,25 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"sync"
 	"time"
 )
+
+// OpenFile creates or truncates a capture file and ensures that only its owner
+// can access it, including when an existing file had broader permissions.
+func OpenFile(path string) (*os.File, error) {
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
+	if err != nil {
+		return nil, err
+	}
+	if err := file.Chmod(0o600); err != nil {
+		_ = file.Close()
+		return nil, fmt.Errorf("restrict capture permissions: %w", err)
+	}
+	return file, nil
+}
 
 type Direction string
 
