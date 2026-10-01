@@ -4,23 +4,20 @@
 
 **Release:** v0.42  
 
-**Phase:** Slice 3 implementation
+**Phase:** Slice 4 implementation
 
-**Implementation status:** Wire and framing review round 1 fix validated; awaiting re-review of the latest head
+**Implementation status:** Protocol packets implemented and validated; awaiting PR review
 
-**Branch:** `v0.42.3-wire-framing`
+**Branch:** `v0.42.4-protocol-packets`
 
-**PR:** [#8](https://github.com/MickMake/GoCBus/pull/8)
+**PR:** Not opened
 
-**Review round:** 1/3
+**Review round:** 0/3
 
-**Reviewed commit:** `2af55be3bea5f3c7c038c6d32b84d905acbf604f`
-
-Slices 1-2 were merged in PRs #6-#7. Slice 3 implements bounded, incremental
-wire framing, short PCI-response recognition, observable malformed-input
-recovery, and passive framing in the opt-in hardware harness. Packet parsing,
-Lighting semantics, PCI initialisation, and automatic reconnect policy remain
-outside this slice.
+Slices 1-3 were merged in PRs #6-#8. Slice 4 implements deterministic,
+side-effect-free packet encoding and decoding over the existing framing layer.
+Lighting semantics, state, transport access, PCI initialisation, and automatic
+reconnect policy remain outside this slice.
 
 ## Completed
 
@@ -49,6 +46,8 @@ outside this slice.
   added for selected serial/TCP targets.
 - Incremental CR/CRLF wire framing, special PCI response recognition, bounded
   buffering, overflow resynchronisation, and incomplete-input diagnostics added.
+- Typed protocol packet encoding/decoding added with exact preservation of
+  unsupported and malformed wire input.
 
 ## Slice 1 implementation record
 
@@ -254,7 +253,7 @@ The final Slice 2 state commit was `8f6d978`; PR #7 was merged into `main` as
 
 Slice: **v0.42.3 - Wire and framing**
 
-State: **Review round 1 fix validated; awaiting re-review of the latest head**
+State: **Merged in PR #8**
 
 Branch: `v0.42.3-wire-framing`
 
@@ -336,6 +335,83 @@ and device-specific response timing remain unverified until Mick authorises a
 specific target and hardware run. Packet decoding and executable consumption of
 framed events remain in later slices; the Slice 3 executable path continues to
 provide raw capture only.
+
+The final Slice 3 state commit was `638487a`; PR #8 was merged into `main` as
+`7a22b5b` before Slice 4 began.
+
+## Slice 4 implementation record
+
+Slice: **v0.42.4 - Protocol packets**
+
+State: **Implemented and validated; awaiting PR review**
+
+Branch: `v0.42.4-protocol-packets`
+
+PR: To be opened
+
+Review round: **0/3**
+
+Pinned reference verified at
+`cc0bdf3a25bd5646dd2d8e7d88a46fcd198f53a1`. Relevant reference behaviour was
+migrated from `cbus/protocol/packet.py`, `base_packet.py`, `pm_packet.py`,
+`pp_packet.py`, `dm_packet.py`, `reset_packet.py`, `po_packet.py`,
+`error_packet.py`, `confirm_packet.py`, and their packet fixtures.
+
+Implemented files and packages:
+
+- `internal/protocol` decodes complete `wire.Event` values and encodes complete
+  serial-interface wire messages without transport access or side effects.
+- Point-to-multipoint packets expose priority, source, confirmation,
+  application, checksum presence, and raw application payload bytes. SAL
+  semantics remain in Slice 5.
+- Point-to-point packets expose direct or bridged addressing and preserve raw
+  CAL bytes for the status/CAL slices. All libcbus bridge-routing lengths are
+  supported for deterministic round trips.
+- Device-management packets expose their parameter and value while preserving
+  direction, priority, source, checksum, and confirmation metadata.
+- Reset, power-up, PCI-error, and confirmation packets match libcbus's special
+  packet forms, including canonical `#` encoding for failed confirmations and
+  duplicated `++` power-up encoding.
+- Unsupported destinations, invalid checksums, malformed routing, lowercase or
+  non-hexadecimal input, reserved flags, and incomplete framing become explicit
+  `Unknown` packets retaining the exact original wire event and diagnostic
+  reason.
+- `README.md` documents the protocol boundary and the continuing raw-capture
+  executable limitation.
+
+Deterministic tests use the pinned libcbus and Serial Interface Guide fixtures
+for point-to-multipoint commands, status requests, null Lighting traffic,
+point-to-point CAL replies, PCI setup parameters, and special packets. They also
+cover bridge routing, framer integration, unknown preservation, input ownership,
+and invalid encoder inputs.
+
+Validation completed with Go 1.25.10 on macOS arm64 using writable isolated
+build, module, and temporary caches:
+
+- `gofmt` on all changed Go files: clean.
+- `go test ./...`: pass.
+- `go vet ./...`: pass.
+- `go build ./...`: pass.
+- `go test -race ./internal/protocol`: pass.
+- `go test -tags=hardware ./integration/hardware`: pass with the hardware test
+  skipped because `GOCBUS_HARDWARE=1` was not set; this verifies gating and
+  compilation only.
+- Exact `GoCBus` binary build: pass.
+- Pinned libcbus packet reference tests (`test_pm_packet`,
+  `test_special_packet`, and `test_reply`): 13 pass.
+- `git diff --check`: pass after the final state update.
+
+Self-review found that the initial decoder accepted reserved flag bits and a
+device-management flag paired with the wrong destination type. Encoding those
+typed packets would have normalised their flags and broken byte-for-byte round
+trips. They are now preserved as `Unknown` packets, with focused regression
+fixtures. Self-review also added typed-nil encoder validation so callers receive
+an error instead of a panic.
+
+No real serial PCI or TCP CNI was contacted. Application semantics, CAL/status
+interpretation, command/confirmation correlation, and executable packet
+consumption remain in later slices. The protocol package is deterministic and
+side-effect free.
 
 ## Current design decisions
 
@@ -420,7 +496,7 @@ These are not necessarily defects. They are implementation questions that requir
 
 ## Deferred beyond current slice
 
-- Packet decoding and Lighting receive semantics remain in Slices 4-5.
+- Lighting receive semantics remain in Slice 5.
 - PCI initialisation and live transmit validation remain in Slice 6.
 - Automatic reconnect policy remains with later runtime integration rather than
   the Slice 2 lifecycle primitives.
@@ -460,6 +536,21 @@ an interrupted frame from leaking into a later connection. This is an
 observability and reconnect-safety correction covered by
 `TestFramerFlushReportsIncompleteInputAndRecovers`.
 
+Pinned libcbus returns `InvalidPacket` values whose payload may already have
+lost framing, prefixes, or hexadecimal representation during parsing. GoCBus
+instead returns `protocol.Unknown` with the complete original `wire.Event` and
+a diagnostic reason. This deliberate observability correction satisfies the
+Slice 4 requirement that unsupported input remain observable and permits exact
+re-encoding. It is covered by `TestUnknownPacketsRemainObservable`.
+
+Pinned libcbus decodes bridged point-to-point routing but raises
+`NotImplementedError` when encoding it. GoCBus encodes the same documented
+bridge-length values while preserving bridge address, hops, unit address, and
+raw CAL bytes. This narrow completion of the packet round trip is required by
+Slice 4's encode/decode objective and is covered by
+`TestPointToPointBridgedRoundTrip`; it does not add routing policy or CAL
+semantics.
+
 Any future variation must record:
 
 1. Original design expectation.
@@ -469,8 +560,8 @@ Any future variation must record:
 
 ## Current next step
 
-Push the validated Slice 3 review-round-1 fix to PR #8, then request review of
-the new head. Do not start Slice 4.
+Review the complete Slice 4 diff, then commit, push, and open its PR against
+`main`. Do not start Slice 5.
 
 
 ## Slice design status
