@@ -39,9 +39,11 @@ GoCBus is intended to:
 
 ## Current Status
 
-**Early development.**
+**Early implementation.**
 
-The initial implementation is focused on the C-Bus Lighting application and establishing a reliable protocol, transport and state-management foundation.
+The foundation slice provides the initial `GoCBus` executable, minimal JSON
+configuration, common wire helpers, and deterministic raw traffic
+capture/replay support. Transport and protocol handling remain planned work.
 
 See [docs/MigrationPlanning](docs/MigrationPlanning) for the design and migration planning.
 
@@ -49,7 +51,27 @@ See [docs/MigrationPlanning](docs/MigrationPlanning) for the design and migratio
 
 Start with the [macOS setup and slice workflow](docs/CodexLocalSetup.md). Repository instructions live in [AGENTS.md](AGENTS.md); the [v0.42 plan](docs/v0.42/ImplementationPlan.md) links each slice's design and implementation prompt.
 
-Go implementation has not started. The setup guide distinguishes documentation checks available now from build/test commands introduced in Slice 1 and opt-in hardware validation from Slice 2.
+Go implementation began with Slice 1. The setup guide distinguishes the
+deterministic build/test commands available now from opt-in hardware validation
+introduced in Slice 2.
+
+### Foundation configuration
+
+Slice 1 accepts an optional JSON file containing only logging settings:
+
+```json
+{
+  "log_level": "info",
+  "raw_log": false
+}
+```
+
+Run `GoCBus -config config.json`. The `-log-level` and `-raw-log` flags override
+file values. Supported levels are `trace`, `debug`, `info`, `warn`, and `error`.
+Raw traffic is disabled by default and is emitted at trace level when enabled.
+Its separate gate does not change the configured level for ordinary logs.
+The Slice 1 executable validates configuration and exits; transport arrives in
+Slice 2.
 
 ## Licence
 
