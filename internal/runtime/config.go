@@ -31,10 +31,16 @@ func LoadConfig(path string) (Config, error) {
 	defer f.Close()
 
 	config := DefaultConfig()
+	// Decode through a pointer so a top-level null becomes nil instead of
+	// silently leaving the default struct unchanged.
+	decoded := &config
 	decoder := json.NewDecoder(f)
 	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&config); err != nil {
+	if err := decoder.Decode(&decoded); err != nil {
 		return Config{}, fmt.Errorf("decode config: %w", err)
+	}
+	if decoded == nil {
+		return Config{}, errors.New("decode config: expected one JSON object")
 	}
 
 	var extra any
@@ -45,10 +51,10 @@ func LoadConfig(path string) (Config, error) {
 		return Config{}, fmt.Errorf("decode config: %w", err)
 	}
 
-	if err := config.Validate(); err != nil {
+	if err := decoded.Validate(); err != nil {
 		return Config{}, err
 	}
-	return config, nil
+	return *decoded, nil
 }
 
 func (c Config) Validate() error {

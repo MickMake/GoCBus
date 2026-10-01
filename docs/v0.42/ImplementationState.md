@@ -6,15 +6,18 @@
 
 **Phase:** Slice 1 implementation
 
-**Implementation status:** Slice 1 implemented, validated and independently reviewed clean in round 3; awaiting commit and PR
+**Implementation status:** Slice 1 implemented and validated; PR review round 1 fixes prepared for the next submitted head
 
 **Branch:** `v0.42.1-foundation`
 
-**Review round:** 3/3
+**PR:** [#6](https://github.com/MickMake/GoCBus/pull/6)
 
-The v0.42.1 foundation is implemented locally. Review rounds 1-3 are complete
-and round 3 found no actionable issues. It has not been committed, pushed,
-merged or released; CI and review of the eventual PR head remain outstanding.
+**Review round:** 1/3
+
+The v0.42.1 foundation is committed and submitted in PR #6. Review round 1
+found two valid configuration/state-record issues on commit `c9984c7`; fixes
+are prepared locally and require commit, push, CI and review of the next
+submitted head. The slice is not merged or released.
 
 ## Completed
 
@@ -39,13 +42,15 @@ merged or released; CI and review of the eventual PR head remain outstanding.
 
 Slice: **v0.42.1 - Foundation and minimal runtime/configuration**
 
-State: **Implemented and validated; awaiting independent review and PR**
+State: **Implemented and validated; PR round 1 fixes prepared locally**
 
 Branch: `v0.42.1-foundation`
 
-Review round: **3/3**
+PR: [#6](https://github.com/MickMake/GoCBus/pull/6)
 
-Reviewed commit: **not yet committed; rounds 1-3 reviewed the working-tree content**
+Review round: **1/3**
+
+Reviewed commit: `c9984c71346cf5478d3c58098c8ae41ca5bf2feb`
 
 Implemented files and packages:
 
@@ -92,22 +97,30 @@ Implementation decisions:
 No hardware validation was run or required. Slice 1 adds no connection code and
 does not contact serial devices, CNI endpoints, MQTT brokers or C-Bus loads.
 
-Review round 1 found that enabling `raw_log` lowered the shared handler
-threshold to trace, allowing ordinary debug and info records through even when
-`log_level` was `error`. Raw traffic now uses a dedicated trace logger writing
-to the same destination while the ordinary logger retains its configured
-threshold. `TestRawLogDoesNotLowerOrdinaryLogLevel` covers the reported case.
+Three preliminary independent working-tree checks were completed before the
+first commit. The first found that enabling `raw_log` lowered the shared handler
+threshold to trace; the subsequent checks found the working-tree content clean.
+Raw traffic now uses a dedicated trace logger while ordinary diagnostics retain
+their configured threshold, covered by
+`TestRawLogDoesNotLowerOrdinaryLogLevel`. These preliminary checks did not
+consume the PR review-round limit.
 
-Review round 2 independently reviewed the full current uncommitted diff and
-found no actionable issues. No reviewed commit exists yet. The remaining
-validation limitation is that the capture fixture is synthetic and derived
-from pinned libcbus examples; live PCI/CNI and hardware behaviour remains
-unverified until the explicit opt-in harness begins in Slice 2.
+PR review round 1/3 independently reviewed submitted commit
+`c9984c71346cf5478d3c58098c8ae41ca5bf2feb` and found two valid P2 issues:
 
-Review round 3 independently reviewed the complete final working-tree content
-and found no actionable issues. This exhausts the planned 3/3 review rounds; no
-additional review was started. Commit, push, CI and review of the eventual PR
-head remain outstanding.
+- Top-level JSON `null` was accepted because decoding it into a preinitialised
+  config struct was a no-op. Configuration now requires a non-null JSON object;
+  focused tests also reject array and scalar roots while preserving unknown
+  field and trailing-value checks.
+- This state file incorrectly counted the three preliminary working-tree checks
+  as PR review rounds 3/3. They are now recorded separately and the submitted
+  review count is correctly 1/3.
+
+Both fixes are implemented and validated locally. The next submitted head still
+requires CI and independent review. The remaining validation limitation is that
+the capture fixture is synthetic and derived from pinned libcbus examples; live
+PCI/CNI and hardware behaviour remains unverified until the explicit opt-in
+harness begins in Slice 2.
 
 ## Current design decisions
 
@@ -224,9 +237,9 @@ Any future variation must record:
 
 ## Current next step
 
-Commit the approved Slice 1 diff on `v0.42.1-foundation`, push it and open one
-PR against `main`. Then run the required CI and PR-head review loop; do not
-start Slice 2 before Slice 1 is reviewed and merged.
+Commit and push the round 1 fixes to PR #6, update its review record, then await
+CI and independent review of the new submitted head. Do not start Slice 2
+before Slice 1 is reviewed and merged.
 
 
 ## Slice design status

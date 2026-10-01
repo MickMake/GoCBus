@@ -30,6 +30,21 @@ func TestLoadConfig(t *testing.T) {
 			wantErr: "unknown field",
 		},
 		{
+			name:    "null root",
+			content: `null`,
+			wantErr: "expected one JSON object",
+		},
+		{
+			name:    "array root",
+			content: `[]`,
+			wantErr: "cannot unmarshal array",
+		},
+		{
+			name:    "scalar root",
+			content: `true`,
+			wantErr: "cannot unmarshal bool",
+		},
+		{
 			name:    "invalid level",
 			content: `{"log_level":"verbose"}`,
 			wantErr: "invalid log_level",
