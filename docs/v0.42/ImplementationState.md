@@ -3,10 +3,21 @@
 ## Current status
 
 **Release:** v0.42  
-**Phase:** Detailed slice design / pre-implementation  
-**Implementation status:** Not yet started
 
-The migration design has been drafted and the v0.42 implementation plan is being established before production code is written.
+**Phase:** Slice 1 implementation
+
+**Implementation status:** Slice 1 implemented and validated; PR review round 1 fixes submitted and CI passed
+
+**Branch:** `v0.42.1-foundation`
+
+**PR:** [#6](https://github.com/MickMake/GoCBus/pull/6)
+
+**Review round:** 1/3
+
+The v0.42.1 foundation is committed and submitted in PR #6. Review round 1
+found two valid configuration/state-record issues on commit `c9984c7`; fixes
+were submitted in commit `f0e0628` and CI passed. The updated submitted head
+requires independent review.
 
 ## Completed
 
@@ -18,6 +29,99 @@ The migration design has been drafted and the v0.42 implementation plan is being
 - Migration planning documentation created.
 - v0.42 implementation structure created.
 - GPLv3 licensing established for GoCBus; libcbus LGPL3+ attribution retained.
+- Initial Go module and case-sensitive `cmd/GoCBus` executable added.
+- Minimal JSON configuration loading, validation and CLI overrides added.
+- Shared wire identifiers, framing constants and libcbus-compatible checksum
+  helpers added.
+- Timestamped raw RX/TX capture writing and replay reading added using a
+  line-delimited JSON format.
+- Logging levels and separately gated raw RX/TX trace conventions added.
+- Deterministic unit tests and a sanitised capture fixture added.
+
+## Slice 1 implementation record
+
+Slice: **v0.42.1 - Foundation and minimal runtime/configuration**
+
+State: **Implemented and validated; PR round 1 fixes submitted and CI passed**
+
+Branch: `v0.42.1-foundation`
+
+PR: [#6](https://github.com/MickMake/GoCBus/pull/6)
+
+Review round: **1/3**
+
+Reviewed commit: `c9984c71346cf5478d3c58098c8ae41ca5bf2feb`
+
+Implemented files and packages:
+
+- `go.mod` establishes module `github.com/MickMake/GoCBus` with Go 1.25.
+- `cmd/GoCBus` provides the minimal executable and preserves the locked binary
+  name.
+- `internal/runtime` provides strict JSON configuration, `-config`,
+  `-log-level` and `-raw-log` overrides, validation and logging setup.
+- `internal/wire` provides the immediately required `ApplicationID` and
+  `GroupAddress` types, the default Lighting application identifier, framing
+  constants and checksum helpers.
+- `internal/capture` provides timestamped RX/TX NDJSON records with hexadecimal
+  byte data and strict replay validation.
+- `testdata/capture/libcbus-lighting.ndjson` is a sanitised synthetic fixture
+  based on the pinned libcbus tests and PCI examples; its timestamps are
+  invented and its provenance is recorded beside it.
+- `README.md` documents the implemented foundation and its configuration.
+
+Validation completed with Go 1.25.10 on macOS arm64 using writable isolated
+build, module and temporary caches:
+
+- `gofmt` on all changed Go files: clean.
+- `go test ./...`: pass.
+- `go vet ./...`: pass.
+- `go build ./...`: pass.
+- `go build -o /private/tmp/gocbus-slice1-build/GoCBus ./cmd/GoCBus`: pass.
+- Built executable smoke test with default configuration: pass and exits after
+  reporting that transport is not implemented in v0.42.1.
+
+Implementation decisions:
+
+- Configuration contains only `log_level` and `raw_log`; future settings are
+  deferred until their owning slices provide real consumers.
+- Unknown JSON configuration fields and trailing JSON values are rejected so
+  misspellings fail visibly.
+- Capture files are newline-delimited JSON with RFC3339-nanosecond timestamps,
+  `rx`/`tx` direction and uppercase hexadecimal bytes. This keeps fixtures
+  diffable and replay independent of transport and packet decoding.
+- Raw byte logs use a dedicated trace logger behind the separate `raw_log`
+  gate. Ordinary diagnostics retain the configured `log_level` threshold.
+- Only the default Lighting application and generic application/group identifier
+  types were introduced; further protocol enums remain with their owning slices.
+
+No hardware validation was run or required. Slice 1 adds no connection code and
+does not contact serial devices, CNI endpoints, MQTT brokers or C-Bus loads.
+
+Three preliminary independent working-tree checks were completed before the
+first commit. The first found that enabling `raw_log` lowered the shared handler
+threshold to trace; the subsequent checks found the working-tree content clean.
+Raw traffic now uses a dedicated trace logger while ordinary diagnostics retain
+their configured threshold, covered by
+`TestRawLogDoesNotLowerOrdinaryLogLevel`. These preliminary checks did not
+consume the PR review-round limit.
+
+PR review round 1/3 independently reviewed submitted commit
+`c9984c71346cf5478d3c58098c8ae41ca5bf2feb` and found two valid P2 issues:
+
+- Top-level JSON `null` was accepted because decoding it into a preinitialised
+  config struct was a no-op. Configuration now requires a non-null JSON object;
+  focused tests also reject array and scalar roots while preserving unknown
+  field and trailing-value checks.
+- This state file incorrectly counted the three preliminary working-tree checks
+  as PR review rounds 3/3. They are now recorded separately and the submitted
+  review count is correctly 1/3.
+
+Both fixes are implemented and submitted in commit `f0e0628`. CI passed on the
+updated head. Independent review of that submitted head remains outstanding.
+The remaining validation limitation is that
+the capture fixture is synthetic and derived from pinned libcbus examples; live
+PCI/CNI and hardware behaviour remains unverified until the explicit opt-in
+harness begins in Slice 2.
 
 ## Current design decisions
 
@@ -102,17 +206,28 @@ These are not necessarily defects. They are implementation questions that requir
 
 ## Deferred beyond current slice
 
-No implementation work has yet been deferred from v0.42 because coding has not started.
-
-As implementation proceeds, deferred items should be recorded here with:
-
-- what was deferred,
-- why,
-- expected release or condition for reconsideration.
+- Serial/TCP transport, capture-file lifecycle and the opt-in hardware harness
+  remain in Slice 2.
+- Buffering, framing and packet decoding remain in Slices 3-5.
+- Transport, MQTT, Home Assistant and other subsystem settings are not present
+  in the Slice 1 configuration. Add them only when their owning slices
+  implement the corresponding behaviour.
+- Complete lifecycle orchestration and configuration consolidation remain in
+  Slice 12.
 
 ## Implementation variations from the agreed design
 
-None at present because implementation has not started. Planning revisions are recorded separately above.
+The design did not prescribe the configuration or capture file encodings. Slice
+1 uses strict JSON configuration and NDJSON capture records as the smallest
+standard-library implementation. This does not vary an observable libcbus
+contract because libcbus has no equivalent capture/config format for this
+foundation.
+
+`ValidateChecksum` returns `false` for empty input. Pinned libcbus
+`validate_cbus_checksum` indexes the final byte and raises `IndexError` for an
+empty value. The Go behaviour is a deliberate defensive correction: validation
+helpers report invalid input without panicking. It is covered by
+`TestValidateChecksumRejectsInvalid`.
 
 Any future variation must record:
 
@@ -123,13 +238,9 @@ Any future variation must record:
 
 ## Current next step
 
-Begin Slice 1 from `ImplementationPlan.md`:
-
-```text
-minimal GoCBus/config bootstrap -> foundation primitives -> checksum/validation helpers -> capture/replay scaffolding -> deterministic fixtures/tests
-```
-
-Transport connection work and the opt-in real-hardware integration harness begin in Slice 2. Before coding, inspect the pinned libcbus files required for Slice 1, verify the current repository state, propose the implementation branch, and stop for approval.
+Await independent review of submitted head `f0e0628`. If clean, Slice 1 is ready
+for merge. Do not start Slice 2 before Slice 1 is reviewed and merged. Do not start Slice 2
+before Slice 1 is reviewed and merged.
 
 
 ## Slice design status
