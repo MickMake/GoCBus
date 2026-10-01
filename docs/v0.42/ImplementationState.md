@@ -4,21 +4,21 @@
 
 **Release:** v0.42  
 
-**Phase:** Slice 2 PR review
+**Phase:** Slice 3 implementation
 
-**Implementation status:** Review round 2 documentation fix validated; awaiting review of the latest head
+**Implementation status:** Wire and framing implemented and validated; awaiting PR review
 
-**Branch:** `v0.42.2-transport`
+**Branch:** `v0.42.3-wire-framing`
 
-**PR:** [#7](https://github.com/MickMake/GoCBus/pull/7)
+**PR:** Not opened
 
-**Review round:** 2/3
+**Review round:** 0/3
 
-Slice 1 was merged in PR #6. Slice 2 implements raw serial PCI and TCP CNI
-transport, capture integration, and an explicit opt-in receive-only hardware
-harness. PR review rounds 1-2 found four valid issues; their fixes are validated
-locally and await review of the latest head. No framing, packet parsing, PCI
-initialisation, or automatic reconnect policy is included.
+Slices 1-2 were merged in PRs #6-#7. Slice 3 implements bounded, incremental
+wire framing, short PCI-response recognition, observable malformed-input
+recovery, and passive framing in the opt-in hardware harness. Packet parsing,
+Lighting semantics, PCI initialisation, and automatic reconnect policy remain
+outside this slice.
 
 ## Completed
 
@@ -45,6 +45,8 @@ initialisation, or automatic reconnect policy is included.
   or disconnected.
 - An explicit build-tagged and environment-gated receive-only hardware harness
   added for selected serial/TCP targets.
+- Incremental CR/CRLF wire framing, special PCI response recognition, bounded
+  buffering, overflow resynchronisation, and incomplete-input diagnostics added.
 
 ## Slice 1 implementation record
 
@@ -133,7 +135,7 @@ synthetic and live PCI/CNI behaviour had not been exercised.
 
 Slice: **v0.42.2 - Transport**
 
-State: **Review round 2 documentation fix validated; awaiting review of the latest head**
+State: **Merged in PR #7**
 
 Branch: `v0.42.2-transport`
 
@@ -243,6 +245,88 @@ unverified until Mick authorises a specific target and run. This is expected
 for the submitted implementation; the harness is ready but does not prove
 hardware behaviour by merely compiling.
 
+The final Slice 2 state commit was `8f6d978`; PR #7 was merged into `main` as
+`b95650d` before Slice 3 began.
+
+## Slice 3 implementation record
+
+Slice: **v0.42.3 - Wire and framing**
+
+State: **Implemented and validated; awaiting PR review**
+
+Branch: `v0.42.3-wire-framing`
+
+PR: To be opened
+
+Review round: **0/3**
+
+Pinned reference verified at
+`cc0bdf3a25bd5646dd2d8e7d88a46fcd198f53a1`. Relevant reference behaviour:
+
+- `cbus/protocol/buffered_protocol.py` incrementally retains incomplete input,
+  repeatedly consumes complete items, and enforces a 256-byte buffer limit.
+- `cbus/protocol/packet.py` uses CRLF for PCI responses, CR for commands,
+  recognises each `+` power-up notification and `!` PCI error immediately, and
+  consumes `g`-`z` confirmations as two-byte responses.
+- `cbus/protocol/confirm_packet.py`, `error_packet.py`, `po_packet.py`, and
+  `tests/test_special_packet.py` define the short response bytes and examples.
+
+Implemented files and packages:
+
+- `internal/wire.Framer` accepts arbitrary read fragments for either direction
+  and emits exact, independently owned wire bytes including terminators.
+- PCI responses use CRLF termination; commands use CR termination. Power-up,
+  PCI-error, and confirmation responses are identified without pulling Slice 4
+  packet semantics into the wire package.
+- Pending input is limited to 256 bytes. Oversized malformed messages are
+  discarded through the direction-appropriate terminator and reported once as
+  an overflow event; following messages decode normally.
+- `Flush` reports unterminated input at stream end and clears it so data cannot
+  cross connection generations unnoticed.
+- Deterministic tests cover every byte split for each known item, byte-at-a-time
+  feeds, multiple items and commands in one read, exact-size boundaries,
+  oversized input and recovery, unknown input preservation, stable returned
+  storage, the libcbus confirmation fallback, and the existing capture fixture.
+- The opt-in hardware harness now feeds passive RX bytes through the framer,
+  requires a complete event, fails on overflow, and logs a partial event caused
+  only by the bounded capture timeout. It still performs no transmit or PCI
+  initialisation.
+- `README.md` and the hardware-harness README describe the implemented framing
+  boundary and remaining runtime limitation.
+
+Validation completed with Go 1.25.10 on macOS arm64 using writable isolated
+build, module, and temporary caches:
+
+- `gofmt` on all changed Go files: clean.
+- `go test ./...`: pass.
+- `go vet ./...`: pass.
+- `go build ./...`: pass.
+- `go test -race ./internal/wire`: pass.
+- `go test -tags=hardware ./integration/hardware`: pass with the hardware test
+  skipped because `GOCBUS_HARDWARE=1` was not set; this verifies gating and
+  compilation only.
+- Exact `GoCBus` binary build: pass.
+- `git diff --check`: pass after the final state update.
+
+Self-review found and fixed these issues before submission:
+
+- The first framer API had no way to expose partial input when a stream ended.
+  `Flush` now returns an incomplete diagnostic and resets the buffer.
+- The initial change left the opt-in hardware harness at raw capture only,
+  despite the release plan requiring later slices to extend it for framing. The
+  harness now passively validates complete RX wire events without transmitting.
+- Initial overflow handling cleared 256 bytes and treated the remaining tail as
+  a new frame. It now discards through the current message terminator, reports
+  the complete dropped-byte count, and resumes only at the next message.
+- Additional review added byte-at-a-time, coalesced-command, exact-limit, and
+  unterminated-overflow tests to cover fragmentation and boundary cases.
+
+No real serial PCI or TCP CNI was contacted. Live byte framing, noise patterns,
+and device-specific response timing remain unverified until Mick authorises a
+specific target and hardware run. Packet decoding and executable consumption of
+framed events remain in later slices; the Slice 3 executable path continues to
+provide raw capture only.
+
 ## Current design decisions
 
 - No C-Gate dependency.
@@ -326,7 +410,7 @@ These are not necessarily defects. They are implementation questions that requir
 
 ## Deferred beyond current slice
 
-- Buffering, framing and packet decoding remain in Slices 3-5.
+- Packet decoding and Lighting receive semantics remain in Slices 4-5.
 - PCI initialisation and live transmit validation remain in Slice 6.
 - Automatic reconnect policy remains with later runtime integration rather than
   the Slice 2 lifecycle primitives.
@@ -349,6 +433,23 @@ empty value. The Go behaviour is a deliberate defensive correction: validation
 helpers report invalid input without panicking. It is covered by
 `TestValidateChecksumRejectsInvalid`.
 
+Pinned libcbus rejects a single receive callback larger than 256 bytes and
+clears the accumulated buffer when appending a callback would exceed that
+limit. GoCBus instead applies the same 256-byte limit to one incomplete wire
+message, allowing an arbitrarily sized transport read containing multiple
+bounded messages. On message overflow it discards through the applicable
+terminator and emits an overflow diagnostic before resuming. This corrective
+variation is required by Slice 3's arbitrary-read, multiple-frame, bounded
+recovery criteria and is covered by
+`TestFramerHandlesReadLargerThanBufferWhenItemsAreBounded` and
+`TestFramerReportsOverflowAndRecovers`.
+
+Pinned libcbus retains partial input without exposing a stream-end result.
+GoCBus `Flush` returns an incomplete diagnostic and clears that data, preventing
+an interrupted frame from leaking into a later connection. This is an
+observability and reconnect-safety correction covered by
+`TestFramerFlushReportsIncompleteInputAndRecovers`.
+
 Any future variation must record:
 
 1. Original design expectation.
@@ -358,8 +459,8 @@ Any future variation must record:
 
 ## Current next step
 
-Continue the review/fix loop on existing PR #7 for its latest submitted head.
-Do not open a replacement PR or start Slice 3.
+Open the Slice 3 PR against `main`, then continue its review/fix loop. Do not
+start Slice 4.
 
 
 ## Slice design status

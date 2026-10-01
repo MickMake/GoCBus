@@ -41,10 +41,10 @@ GoCBus is intended to:
 
 **Early implementation.**
 
-Slices 1-2 provide the `GoCBus` executable, minimal JSON configuration, common
-wire helpers, deterministic raw traffic capture/replay, and raw serial PCI or
-TCP CNI transport. Framing, protocol decoding, and PCI initialisation remain
-planned work.
+Slices 1-3 provide the `GoCBus` executable, minimal JSON configuration,
+deterministic raw traffic capture/replay, raw serial PCI or TCP CNI transport,
+and bounded incremental wire framing. Protocol packet decoding and PCI
+initialisation remain planned work.
 
 See [docs/MigrationPlanning](docs/MigrationPlanning) for the design and migration planning.
 
@@ -87,6 +87,15 @@ opening a device or network connection.
 The explicit receive-only real-hardware harness is documented in
 [integration/hardware](integration/hardware). It never runs with the default
 test suite.
+
+### Wire framing
+
+`internal/wire` separates arbitrary stream reads into CRLF-terminated PCI
+responses and CR-terminated commands. It also identifies power-up, PCI-error,
+and confirmation responses without interpreting higher-level packets. Pending
+input is limited to 256 bytes; overflow and incomplete input are returned as
+observable diagnostic events. The current executable still operates as a raw
+capture path until the protocol slices add consumers for framed events.
 
 ## Licence
 
