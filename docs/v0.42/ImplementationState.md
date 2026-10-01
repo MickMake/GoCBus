@@ -6,7 +6,7 @@
 
 **Phase:** Slice 1 implementation
 
-**Implementation status:** Slice 1 implemented and validated; PR review round 1 fixes prepared for the next submitted head
+**Implementation status:** Slice 1 implemented and validated; PR review round 1 fixes submitted and CI passed
 
 **Branch:** `v0.42.1-foundation`
 
@@ -16,8 +16,8 @@
 
 The v0.42.1 foundation is committed and submitted in PR #6. Review round 1
 found two valid configuration/state-record issues on commit `c9984c7`; fixes
-are prepared locally and require commit, push, CI and review of the next
-submitted head. The slice is not merged or released.
+were submitted in commit `f0e0628` and CI passed. The updated submitted head
+requires independent review.
 
 ## Completed
 
@@ -42,7 +42,7 @@ submitted head. The slice is not merged or released.
 
 Slice: **v0.42.1 - Foundation and minimal runtime/configuration**
 
-State: **Implemented and validated; PR round 1 fixes prepared locally**
+State: **Implemented and validated; PR round 1 fixes submitted and CI passed**
 
 Branch: `v0.42.1-foundation`
 
@@ -116,8 +116,9 @@ PR review round 1/3 independently reviewed submitted commit
   as PR review rounds 3/3. They are now recorded separately and the submitted
   review count is correctly 1/3.
 
-Both fixes are implemented and validated locally. The next submitted head still
-requires CI and independent review. The remaining validation limitation is that
+Both fixes are implemented and submitted in commit `f0e0628`. CI passed on the
+updated head. Independent review of that submitted head remains outstanding.
+The remaining validation limitation is that
 the capture fixture is synthetic and derived from pinned libcbus examples; live
 PCI/CNI and hardware behaviour remains unverified until the explicit opt-in
 harness begins in Slice 2.
@@ -237,8 +238,8 @@ Any future variation must record:
 
 ## Current next step
 
-Commit and push the round 1 fixes to PR #6, update its review record, then await
-CI and independent review of the new submitted head. Do not start Slice 2
+Await independent review of submitted head `f0e0628`. If clean, Slice 1 is ready
+for merge. Do not start Slice 2 before Slice 1 is reviewed and merged. Do not start Slice 2
 before Slice 1 is reviewed and merged.
 
 
