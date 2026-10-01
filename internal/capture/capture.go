@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -46,6 +47,7 @@ func (record Record) validate() error {
 
 type Writer struct {
 	encoder *json.Encoder
+	mu      sync.Mutex
 }
 
 func NewWriter(output io.Writer) *Writer {
@@ -53,6 +55,9 @@ func NewWriter(output io.Writer) *Writer {
 }
 
 func (writer *Writer) Write(record Record) error {
+	writer.mu.Lock()
+	defer writer.mu.Unlock()
+
 	if err := record.validate(); err != nil {
 		return err
 	}

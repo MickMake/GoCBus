@@ -5,17 +5,21 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"os"
+	"strconv"
 	"strings"
 )
 
 const defaultLogLevel = "info"
 
-// Config contains only the process settings used by the foundation slice.
-// Later slices extend it when they introduce settings with real consumers.
+// Config contains only settings consumed by the implemented slices.
 type Config struct {
-	LogLevel string `json:"log_level"`
-	RawLog   bool   `json:"raw_log"`
+	LogLevel     string `json:"log_level"`
+	RawLog       bool   `json:"raw_log"`
+	SerialDevice string `json:"serial_device,omitempty"`
+	TCPAddress   string `json:"tcp_address,omitempty"`
+	CapturePath  string `json:"capture_path,omitempty"`
 }
 
 func DefaultConfig() Config {
@@ -60,8 +64,31 @@ func LoadConfig(path string) (Config, error) {
 func (c Config) Validate() error {
 	switch strings.ToLower(c.LogLevel) {
 	case "trace", "debug", "info", "warn", "error":
-		return nil
 	default:
 		return fmt.Errorf("invalid log_level %q: want trace, debug, info, warn, or error", c.LogLevel)
 	}
+
+	serialConfigured := strings.TrimSpace(c.SerialDevice) != ""
+	tcpConfigured := strings.TrimSpace(c.TCPAddress) != ""
+	if serialConfigured && tcpConfigured {
+		return errors.New("configure exactly one of serial_device or tcp_address")
+	}
+	if tcpConfigured {
+		host, port, err := net.SplitHostPort(c.TCPAddress)
+		if err != nil {
+			return fmt.Errorf("invalid tcp_address %q: %w", c.TCPAddress, err)
+		}
+		portNumber, err := strconv.Atoi(port)
+		if strings.TrimSpace(host) == "" || err != nil || portNumber < 1 || portNumber > 65535 {
+			return fmt.Errorf("invalid tcp_address %q: require host and numeric port 1-65535", c.TCPAddress)
+		}
+	}
+	if strings.TrimSpace(c.CapturePath) != "" && !serialConfigured && !tcpConfigured {
+		return errors.New("capture_path requires serial_device or tcp_address")
+	}
+	return nil
+}
+
+func (c Config) transportConfigured() bool {
+	return strings.TrimSpace(c.SerialDevice) != "" || strings.TrimSpace(c.TCPAddress) != ""
 }

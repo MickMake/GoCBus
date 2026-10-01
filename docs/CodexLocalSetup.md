@@ -131,7 +131,11 @@ Remove that temporary build directory when finished. When concurrency or recover
 
 ### Hardware from Slice 2 onward
 
-The harness does not exist yet. Slice 2 must document its exact opt-in command and required local settings when it is implemented; this guide intentionally provides no pretend hardware command.
+Slice 2 provides the receive-only harness under `integration/hardware`. It is
+excluded from default tests by both a build tag and an environment gate. Its
+README documents the required explicit serial/TCP target, capture path, bounded
+duration, and data-handling cautions. It does not discover devices, initialise a
+PCI, transmit bytes, or change loads.
 
 Default tests use fixtures/fakes and must not contact serial PCI, TCP CNI, live MQTT or physical loads. For an authorised hardware run, record the target/interface, test scope, setup assumptions, command, observations and limitations. Identify any reset or load-changing operation before running it. Do not guess a device path or scan for a target. Keep machine-specific configuration and raw captures local; commit only reviewed, sanitised fixtures with provenance.
 
