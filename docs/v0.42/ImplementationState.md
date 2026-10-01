@@ -6,13 +6,15 @@
 
 **Phase:** Slice 3 implementation
 
-**Implementation status:** Wire and framing implemented and validated; awaiting PR review
+**Implementation status:** Wire and framing review round 1 fix validated; awaiting re-review of the latest head
 
 **Branch:** `v0.42.3-wire-framing`
 
-**PR:** Not opened
+**PR:** [#8](https://github.com/MickMake/GoCBus/pull/8)
 
-**Review round:** 0/3
+**Review round:** 1/3
+
+**Reviewed commit:** `2af55be3bea5f3c7c038c6d32b84d905acbf604f`
 
 Slices 1-2 were merged in PRs #6-#7. Slice 3 implements bounded, incremental
 wire framing, short PCI-response recognition, observable malformed-input
@@ -252,13 +254,15 @@ The final Slice 2 state commit was `8f6d978`; PR #7 was merged into `main` as
 
 Slice: **v0.42.3 - Wire and framing**
 
-State: **Implemented and validated; awaiting PR review**
+State: **Review round 1 fix validated; awaiting re-review of the latest head**
 
 Branch: `v0.42.3-wire-framing`
 
-PR: To be opened
+PR: [#8](https://github.com/MickMake/GoCBus/pull/8)
 
-Review round: **0/3**
+Review round: **1/3**
+
+Reviewed commit: `2af55be3bea5f3c7c038c6d32b84d905acbf604f`
 
 Pinned reference verified at
 `cc0bdf3a25bd5646dd2d8e7d88a46fcd198f53a1`. Relevant reference behaviour:
@@ -279,8 +283,9 @@ Implemented files and packages:
   PCI-error, and confirmation responses are identified without pulling Slice 4
   packet semantics into the wire package.
 - Pending input is limited to 256 bytes. Oversized malformed messages are
-  discarded through the direction-appropriate terminator and reported once as
-  an overflow event; following messages decode normally.
+  discarded through the direction-appropriate terminator or, inbound, until a
+  recognised short-response boundary. One overflow event is reported and
+  following messages decode normally.
 - `Flush` reports unterminated input at stream end and clears it so data cannot
   cross connection generations unnoticed.
 - Deterministic tests cover every byte split for each known item, byte-at-a-time
@@ -320,6 +325,11 @@ Self-review found and fixed these issues before submission:
   the complete dropped-byte count, and resumes only at the next message.
 - Additional review added byte-at-a-time, coalesced-command, exact-limit, and
   unterminated-overflow tests to cover fragmentation and boundary cases.
+- Review round 1 found that inbound overflow discard mode recognised only CRLF,
+  allowing later power-up, PCI-error, or confirmation responses to be swallowed.
+  Discard mode now treats each recognised short response as a resynchronisation
+  boundary, reports the overflow without counting the valid response as dropped,
+  and resumes normal framing. Split-boundary tests cover all three response forms.
 
 No real serial PCI or TCP CNI was contacted. Live byte framing, noise patterns,
 and device-specific response timing remain unverified until Mick authorises a
@@ -459,8 +469,8 @@ Any future variation must record:
 
 ## Current next step
 
-Open the Slice 3 PR against `main`, then continue its review/fix loop. Do not
-start Slice 4.
+Push the validated Slice 3 review-round-1 fix to PR #8, then request review of
+the new head. Do not start Slice 4.
 
 
 ## Slice design status

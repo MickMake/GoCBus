@@ -199,6 +199,58 @@ func TestFramerReportsOverflowAndRecovers(t *testing.T) {
 	}
 }
 
+func TestFramerResynchronisesOverflowAtSpecialResponses(t *testing.T) {
+	tests := []struct {
+		name string
+		tail []byte
+		want []Event
+	}{
+		{
+			name: "power-up",
+			tail: []byte("+B\r\n"),
+			want: []Event{
+				{Kind: Overflow, Dropped: MaxBufferSize},
+				{Kind: PowerUp, Data: []byte("+")},
+				{Kind: Response, Data: []byte("B\r\n")},
+			},
+		},
+		{
+			name: "PCI error",
+			tail: []byte("!B\r\n"),
+			want: []Event{
+				{Kind: Overflow, Dropped: MaxBufferSize},
+				{Kind: PCIError, Data: []byte("!")},
+				{Kind: Response, Data: []byte("B\r\n")},
+			},
+		},
+		{
+			name: "confirmation",
+			tail: []byte("g.B\r\n"),
+			want: []Event{
+				{Kind: Overflow, Dropped: MaxBufferSize},
+				{Kind: Confirmation, Data: []byte("g.")},
+				{Kind: Response, Data: []byte("B\r\n")},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			for split := 0; split <= len(tt.tail); split++ {
+				framer := newTestFramer(t, FromPCI)
+				if got := framer.Feed(bytes.Repeat([]byte{'A'}, MaxBufferSize)); got != nil {
+					t.Fatalf("initial events = %#v, want nil", got)
+				}
+				got := framer.Feed(tt.tail[:split])
+				got = append(got, framer.Feed(tt.tail[split:])...)
+				if !reflect.DeepEqual(got, tt.want) {
+					t.Fatalf("split %d: events = %#v, want %#v", split, got, tt.want)
+				}
+			}
+		})
+	}
+}
+
 func TestFramerFlushReportsUnterminatedOverflow(t *testing.T) {
 	framer := newTestFramer(t, FromPCI)
 	framer.Feed(bytes.Repeat([]byte{'A'}, MaxBufferSize+1))

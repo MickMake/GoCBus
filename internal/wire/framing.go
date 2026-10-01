@@ -60,9 +60,7 @@ func (framer *Framer) Feed(data []byte) []Event {
 	var events []Event
 	for _, value := range data {
 		if framer.discarded != 0 {
-			if event, complete := framer.discard(value); complete {
-				events = append(events, event)
-			}
+			events = append(events, framer.discard(value)...)
 			continue
 		}
 
@@ -70,9 +68,7 @@ func (framer *Framer) Feed(data []byte) []Event {
 			framer.discarded = len(framer.buffer)
 			framer.discardSawCR = framer.direction == FromPCI && framer.buffer[len(framer.buffer)-1] == EndResponse[0]
 			framer.buffer = framer.buffer[:0]
-			if event, complete := framer.discard(value); complete {
-				events = append(events, event)
-			}
+			events = append(events, framer.discard(value)...)
 			continue
 		}
 
@@ -109,7 +105,21 @@ func (framer *Framer) Flush() []Event {
 	return []Event{{Kind: Incomplete, Data: data}}
 }
 
-func (framer *Framer) discard(value byte) (Event, bool) {
+func (framer *Framer) discard(value byte) []Event {
+	if framer.direction == FromPCI {
+		switch value {
+		case '+':
+			return []Event{framer.finishDiscard(), {Kind: PowerUp, Data: []byte{value}}}
+		case '!':
+			return []Event{framer.finishDiscard(), {Kind: PCIError, Data: []byte{value}}}
+		}
+		if isConfirmationCode(value) {
+			event := framer.finishDiscard()
+			framer.buffer = append(framer.buffer, value)
+			return []Event{event}
+		}
+	}
+
 	framer.discarded++
 	complete := value == EndCommand[0]
 	if framer.direction == FromPCI {
@@ -117,13 +127,16 @@ func (framer *Framer) discard(value byte) (Event, bool) {
 		framer.discardSawCR = value == EndResponse[0]
 	}
 	if !complete {
-		return Event{}, false
+		return nil
 	}
+	return []Event{framer.finishDiscard()}
+}
 
+func (framer *Framer) finishDiscard() Event {
 	event := Event{Kind: Overflow, Dropped: framer.discarded}
 	framer.discarded = 0
 	framer.discardSawCR = false
-	return event, true
+	return event
 }
 
 func (framer *Framer) next() (EventKind, int, bool) {
