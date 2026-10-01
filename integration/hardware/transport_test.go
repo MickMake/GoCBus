@@ -14,6 +14,7 @@ import (
 
 	"github.com/MickMake/GoCBus/internal/capture"
 	"github.com/MickMake/GoCBus/internal/transport"
+	"github.com/MickMake/GoCBus/internal/wire"
 )
 
 func TestTransportCapture(t *testing.T) {
@@ -72,9 +73,20 @@ func TestTransportCapture(t *testing.T) {
 		<-ctx.Done()
 		_ = connection.Close()
 	}()
+	framer, err := wire.NewFramer(wire.FromPCI)
+	if err != nil {
+		t.Fatal(err)
+	}
+	framed := 0
 	buffer := make([]byte, 4096)
 	for {
-		_, err := connection.Read(buffer)
+		count, err := connection.Read(buffer)
+		for _, event := range framer.Feed(buffer[:count]) {
+			if event.Kind == wire.Overflow {
+				t.Fatalf("wire receive buffer overflowed after dropping %d bytes", event.Dropped)
+			}
+			framed++
+		}
 		if err == nil {
 			continue
 		}
@@ -89,5 +101,14 @@ func TestTransportCapture(t *testing.T) {
 	if received.Load() == 0 {
 		t.Fatalf("captured no RX bytes during %s", duration)
 	}
-	t.Logf("captured %d RX bytes in %s at %s", received.Load(), duration, capturePath)
+	if framed == 0 {
+		t.Fatalf("received %d bytes but no complete wire events during %s", received.Load(), duration)
+	}
+	if pending := framer.Flush(); len(pending) != 0 {
+		if pending[0].Kind == wire.Overflow {
+			t.Fatalf("wire receive buffer overflowed after dropping %d unterminated bytes", pending[0].Dropped)
+		}
+		t.Logf("capture ended with %d incomplete wire bytes", len(pending[0].Data))
+	}
+	t.Logf("captured %d RX bytes and %d complete wire events in %s at %s", received.Load(), framed, duration, capturePath)
 }
