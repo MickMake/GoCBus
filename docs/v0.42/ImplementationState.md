@@ -4,20 +4,21 @@
 
 **Release:** v0.42  
 
-**Phase:** Slice 1 implementation
+**Phase:** Slice 2 PR review
 
-**Implementation status:** Slice 1 implemented and validated; PR review round 1 fixes submitted and CI passed
+**Implementation status:** Review round 2 documentation fix validated; awaiting review of the latest head
 
-**Branch:** `v0.42.1-foundation`
+**Branch:** `v0.42.2-transport`
 
-**PR:** [#6](https://github.com/MickMake/GoCBus/pull/6)
+**PR:** [#7](https://github.com/MickMake/GoCBus/pull/7)
 
-**Review round:** 1/3
+**Review round:** 2/3
 
-The v0.42.1 foundation is committed and submitted in PR #6. Review round 1
-found two valid configuration/state-record issues on commit `c9984c7`; fixes
-were submitted in commit `f0e0628` and CI passed. The updated submitted head
-requires independent review.
+Slice 1 was merged in PR #6. Slice 2 implements raw serial PCI and TCP CNI
+transport, capture integration, and an explicit opt-in receive-only hardware
+harness. PR review rounds 1-2 found four valid issues; their fixes are validated
+locally and await review of the latest head. No framing, packet parsing, PCI
+initialisation, or automatic reconnect policy is included.
 
 ## Completed
 
@@ -37,12 +38,19 @@ requires independent review.
   line-delimited JSON format.
 - Logging levels and separately gated raw RX/TX trace conventions added.
 - Deterministic unit tests and a sanitised capture fixture added.
+- Raw serial PCI transport at 9600 8N1 and TCP CNI transport added.
+- Context cancellation, clear disconnect propagation, redial primitives, and
+  partial-I/O-aware raw traffic observation added.
+- The executable can capture configured raw transport traffic until cancelled
+  or disconnected.
+- An explicit build-tagged and environment-gated receive-only hardware harness
+  added for selected serial/TCP targets.
 
 ## Slice 1 implementation record
 
 Slice: **v0.42.1 - Foundation and minimal runtime/configuration**
 
-State: **Implemented and validated; PR round 1 fixes submitted and CI passed**
+State: **Merged in PR #6**
 
 Branch: `v0.42.1-foundation`
 
@@ -116,12 +124,124 @@ PR review round 1/3 independently reviewed submitted commit
   as PR review rounds 3/3. They are now recorded separately and the submitted
   review count is correctly 1/3.
 
-Both fixes are implemented and submitted in commit `f0e0628`. CI passed on the
-updated head. Independent review of that submitted head remains outstanding.
-The remaining validation limitation is that
-the capture fixture is synthetic and derived from pinned libcbus examples; live
-PCI/CNI and hardware behaviour remains unverified until the explicit opt-in
-harness begins in Slice 2.
+Both fixes were submitted in commit `f0e0628`; the final state update was
+`047845d`, and PR #6 was merged into `main` as `603d93e`. The remaining
+validation limitation carried into Slice 2 was that the capture fixture was
+synthetic and live PCI/CNI behaviour had not been exercised.
+
+## Slice 2 implementation record
+
+Slice: **v0.42.2 - Transport**
+
+State: **Review round 2 documentation fix validated; awaiting review of the latest head**
+
+Branch: `v0.42.2-transport`
+
+PR: [#7](https://github.com/MickMake/GoCBus/pull/7)
+
+Review round: **2/3**
+
+Reviewed commit: `d8c6a802c272ad13fcdf83a3adf0facfc3e37caa`
+
+Pinned reference verified at
+`cc0bdf3a25bd5646dd2d8e7d88a46fcd198f53a1`. Relevant reference behaviour:
+
+- `cbus/protocol/pciprotocol.py` and `cbus/daemon/cmqttd.py` open serial PCI
+  connections at 9600 baud and TCP CNI connections from a host plus numeric
+  port, and surface connection loss to the caller.
+- libcbus uses pyserial's default 8N1 mode; GoCBus sets all four serial mode
+  values explicitly rather than relying on dependency defaults.
+- libcbus couples transport to packet handling and PCI reset. GoCBus preserves
+  its connection settings and lifecycle behaviour but keeps framing, parsing,
+  and reset/initialisation in their owning later slices.
+
+Implemented files and packages:
+
+- `internal/transport` provides reusable serial and TCP dialers returning raw
+  `io.ReadWriteCloser` streams. Calling a dialer again after close is the
+  reconnect hook; this slice supplies no retry policy.
+- `internal/transport.Observe` records the bytes actually completed by each
+  read/write, including partial I/O, and propagates observer failures without
+  hiding completed byte counts.
+- `internal/capture.Writer` now serialises concurrent RX/TX writes.
+- `internal/runtime` adds strict `serial_device`, `tcp_address`, and
+  `capture_path` configuration plus `-serial`, `-tcp`, and `-capture`
+  overrides. It runs a foreground raw receive/capture loop, closes transport on
+  cancellation, and reports unexpected disconnects as failures.
+- `cmd/GoCBus` maps interrupt and termination signals to runtime cancellation.
+- `integration/hardware` provides the same build-tagged harness for explicitly
+  selected serial or TCP targets. A second environment gate and explicit local
+  capture path are required.
+- `README.md` and `docs/CodexLocalSetup.md` document configuration, lifecycle,
+  capture sensitivity, and hardware opt-in.
+- `go.bug.st/serial` v1.8.0 is the sole direct transport dependency.
+
+Validation completed with Go 1.25.10 on macOS arm64 using writable isolated
+build, module, and temporary caches:
+
+- `gofmt` on all changed Go files: clean.
+- `go test ./...`: pass, including loopback TCP connection, read/write,
+  disconnect, cancellation, redial, capture, validation, and partial-I/O cases.
+- `go test -race ./...`: pass.
+- `go test -tags=hardware ./integration/hardware`: pass with the hardware test
+  skipped because `GOCBUS_HARDWARE=1` was not set; this verifies opt-in gating
+  and compilation only.
+- `go vet ./...`: pass.
+- `go build ./...`: pass.
+- Exact `GoCBus` binary build and no-transport smoke run: pass.
+- `CGO_ENABLED=0 GOOS=linux GOARCH=amd64` `GoCBus` cross-build: pass.
+- `git diff --check`: pass.
+- Changed relative Markdown links: pass.
+
+Self-review found and fixed these issues before submission:
+
+- Cancellation during connection setup was initially reported as a transport
+  failure. It now exits cleanly, with focused before/during-dial tests.
+- `main` initially deferred signal cleanup immediately before `os.Exit`, whose
+  semantics skip defers. Cleanup now runs explicitly before exit.
+- TCP validation initially accepted service names; the pinned reference parses
+  the port as an integer, so configuration and dialers now require a numeric
+  port in the range 1-65535.
+- Serial cancellation after the port opens now closes that port and is covered
+  by a focused test.
+- Live arbitrary transmit was excluded from the hardware harness because no
+  target or command was authorised. Deterministic tests cover raw write and
+  partial-write behaviour without risking C-Bus loads.
+
+PR review round 1/3 reviewed commit
+`0c747d67d785c8f94da370f8af93fea03f8bd8c6` and found three valid P2 issues:
+
+- Existing capture files retained broader permissions because the creation mode
+  did not apply when truncating them. Runtime and hardware capture now share an
+  opener that explicitly enforces owner-only permissions, with a regression
+  test covering a pre-existing `0644` file.
+- File configuration was fully validated before CLI transport overrides, so a
+  valid override could not replace an invalid or incomplete file value. The
+  runtime now decodes first, applies all overrides, and validates the final
+  configuration once; direct `LoadConfig` callers retain strict validation.
+- Serial cancellation could not return while the platform's synchronous open
+  call was blocked. Serial open now runs behind a context-aware handoff, returns
+  promptly on cancellation, and closes a port if the underlying open finishes
+  later. A deterministic blocking-open test covers the lifecycle.
+
+Self-review of the round-one fixes found that the initial CLI-override test used
+a relative capture path and left a test artifact in the package directory; it
+now uses a temporary path. The race suite also found the asynchronous serial
+cleanup test reading a non-atomic fake-port flag; the helper now uses an atomic
+close state. The complete validation matrix above then passed.
+
+PR review round 2/3 reviewed commit
+`d8c6a802c272ad13fcdf83a3adf0facfc3e37caa` and found one valid P2
+documentation issue: the current status identified PR #7, but the next-step
+section still told a resumed session to open a PR. The next step now directs
+future work to the existing PR and latest-head review. The documentation-only
+fix was checked with `git diff --check` and changed-relative-link inspection.
+
+No real serial PCI or TCP CNI was contacted. Serial driver behaviour, live
+disconnect timing, received byte traffic, and hardware capture remain
+unverified until Mick authorises a specific target and run. This is expected
+for the submitted implementation; the harness is ready but does not prove
+hardware behaviour by merely compiling.
 
 ## Current design decisions
 
@@ -206,12 +326,12 @@ These are not necessarily defects. They are implementation questions that requir
 
 ## Deferred beyond current slice
 
-- Serial/TCP transport, capture-file lifecycle and the opt-in hardware harness
-  remain in Slice 2.
 - Buffering, framing and packet decoding remain in Slices 3-5.
-- Transport, MQTT, Home Assistant and other subsystem settings are not present
-  in the Slice 1 configuration. Add them only when their owning slices
-  implement the corresponding behaviour.
+- PCI initialisation and live transmit validation remain in Slice 6.
+- Automatic reconnect policy remains with later runtime integration rather than
+  the Slice 2 lifecycle primitives.
+- MQTT, Home Assistant and other subsystem settings remain absent until their
+  owning slices implement the corresponding behaviour.
 - Complete lifecycle orchestration and configuration consolidation remain in
   Slice 12.
 
@@ -238,9 +358,8 @@ Any future variation must record:
 
 ## Current next step
 
-Await independent review of submitted head `f0e0628`. If clean, Slice 1 is ready
-for merge. Do not start Slice 2 before Slice 1 is reviewed and merged. Do not start Slice 2
-before Slice 1 is reviewed and merged.
+Continue the review/fix loop on existing PR #7 for its latest submitted head.
+Do not open a replacement PR or start Slice 3.
 
 
 ## Slice design status

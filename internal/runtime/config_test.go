@@ -16,8 +16,13 @@ func TestLoadConfig(t *testing.T) {
 	}{
 		{
 			name:    "valid",
-			content: `{"log_level":"debug","raw_log":true}`,
-			want:    Config{LogLevel: "debug", RawLog: true},
+			content: `{"log_level":"debug","raw_log":true,"tcp_address":"127.0.0.1:10001","capture_path":"traffic.ndjson"}`,
+			want: Config{
+				LogLevel:    "debug",
+				RawLog:      true,
+				TCPAddress:  "127.0.0.1:10001",
+				CapturePath: "traffic.ndjson",
+			},
 		},
 		{
 			name:    "defaults omitted fields",
@@ -48,6 +53,26 @@ func TestLoadConfig(t *testing.T) {
 			name:    "invalid level",
 			content: `{"log_level":"verbose"}`,
 			wantErr: "invalid log_level",
+		},
+		{
+			name:    "both transports",
+			content: `{"serial_device":"/dev/ttyUSB0","tcp_address":"127.0.0.1:10001"}`,
+			wantErr: "exactly one",
+		},
+		{
+			name:    "invalid TCP address",
+			content: `{"tcp_address":"missing-port"}`,
+			wantErr: "invalid tcp_address",
+		},
+		{
+			name:    "non-numeric TCP port",
+			content: `{"tcp_address":"example.test:https"}`,
+			wantErr: "numeric port",
+		},
+		{
+			name:    "capture without transport",
+			content: `{"capture_path":"traffic.ndjson"}`,
+			wantErr: "capture_path requires",
 		},
 		{
 			name:    "trailing object",

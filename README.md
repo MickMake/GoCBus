@@ -41,9 +41,10 @@ GoCBus is intended to:
 
 **Early implementation.**
 
-The foundation slice provides the initial `GoCBus` executable, minimal JSON
-configuration, common wire helpers, and deterministic raw traffic
-capture/replay support. Transport and protocol handling remain planned work.
+Slices 1-2 provide the `GoCBus` executable, minimal JSON configuration, common
+wire helpers, deterministic raw traffic capture/replay, and raw serial PCI or
+TCP CNI transport. Framing, protocol decoding, and PCI initialisation remain
+planned work.
 
 See [docs/MigrationPlanning](docs/MigrationPlanning) for the design and migration planning.
 
@@ -55,23 +56,37 @@ Go implementation began with Slice 1. The setup guide distinguishes the
 deterministic build/test commands available now from opt-in hardware validation
 introduced in Slice 2.
 
-### Foundation configuration
+### Transport configuration
 
-Slice 1 accepts an optional JSON file containing only logging settings:
+The configuration accepts logging plus at most one transport:
 
 ```json
 {
   "log_level": "info",
-  "raw_log": false
+  "raw_log": false,
+  "tcp_address": "192.0.2.1:10001",
+  "capture_path": "/private/tmp/gocbus.ndjson"
 }
 ```
 
-Run `GoCBus -config config.json`. The `-log-level` and `-raw-log` flags override
-file values. Supported levels are `trace`, `debug`, `info`, `warn`, and `error`.
-Raw traffic is disabled by default and is emitted at trace level when enabled.
-Its separate gate does not change the configured level for ordinary logs.
-The Slice 1 executable validates configuration and exits; transport arrives in
-Slice 2.
+Use `serial_device` instead of `tcp_address` for a physical PCI; serial is fixed
+at the libcbus-compatible 9600 8N1 settings. Run `GoCBus -config config.json`.
+The `-serial`, `-tcp`, `-capture`, `-log-level`, and `-raw-log` flags override
+file values. `-serial` and `-tcp` are mutually exclusive. Supported log levels
+are `trace`, `debug`, `info`, `warn`, and `error`.
+
+The process connects, records any raw bytes received, and runs in the foreground
+until interrupted or disconnected. A disconnect is reported as a failure; this
+slice deliberately provides reusable reconnect primitives but no automatic
+retry policy. Raw logging is separately gated and does not lower the ordinary
+log threshold. Capture files are truncated at startup and written with owner-only
+permissions; they may contain installation-specific data.
+With no transport configured, `GoCBus` validates its settings and exits without
+opening a device or network connection.
+
+The explicit receive-only real-hardware harness is documented in
+[integration/hardware](integration/hardware). It never runs with the default
+test suite.
 
 ## Licence
 
