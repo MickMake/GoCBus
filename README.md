@@ -45,6 +45,12 @@ The initial implementation is focused on the C-Bus Lighting application and esta
 
 See [docs/MigrationPlanning](docs/MigrationPlanning) for the design and migration planning.
 
+## Developing with local Codex
+
+Start with the [macOS setup and slice workflow](docs/CodexLocalSetup.md). Repository instructions live in [AGENTS.md](AGENTS.md); the [v0.42 plan](docs/v0.42/ImplementationPlan.md) links each slice's design and implementation prompt.
+
+Go implementation has not started. The setup guide distinguishes documentation checks available now from build/test commands introduced in Slice 1 and opt-in hardware validation from Slice 2.
+
 ## Licence
 
 GoCBus is licensed under the **GNU General Public License version 3** (GPLv3). See [LICENSE](LICENSE).
