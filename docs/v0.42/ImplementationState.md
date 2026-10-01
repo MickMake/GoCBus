@@ -6,17 +6,17 @@
 
 **Phase:** Slice 2 PR review
 
-**Implementation status:** Review round 1 fixes implemented and validated; awaiting review of the latest head
+**Implementation status:** Review round 2 documentation fix validated; awaiting review of the latest head
 
 **Branch:** `v0.42.2-transport`
 
 **PR:** [#7](https://github.com/MickMake/GoCBus/pull/7)
 
-**Review round:** 1/3
+**Review round:** 2/3
 
 Slice 1 was merged in PR #6. Slice 2 implements raw serial PCI and TCP CNI
 transport, capture integration, and an explicit opt-in receive-only hardware
-harness. PR review round 1 found three valid issues; their fixes are validated
+harness. PR review rounds 1-2 found four valid issues; their fixes are validated
 locally and await review of the latest head. No framing, packet parsing, PCI
 initialisation, or automatic reconnect policy is included.
 
@@ -133,15 +133,15 @@ synthetic and live PCI/CNI behaviour had not been exercised.
 
 Slice: **v0.42.2 - Transport**
 
-State: **Review round 1 fixes implemented and validated; awaiting review of the latest head**
+State: **Review round 2 documentation fix validated; awaiting review of the latest head**
 
 Branch: `v0.42.2-transport`
 
 PR: [#7](https://github.com/MickMake/GoCBus/pull/7)
 
-Review round: **1/3**
+Review round: **2/3**
 
-Reviewed commit: `0c747d67d785c8f94da370f8af93fea03f8bd8c6`
+Reviewed commit: `d8c6a802c272ad13fcdf83a3adf0facfc3e37caa`
 
 Pinned reference verified at
 `cc0bdf3a25bd5646dd2d8e7d88a46fcd198f53a1`. Relevant reference behaviour:
@@ -229,6 +229,13 @@ a relative capture path and left a test artifact in the package directory; it
 now uses a temporary path. The race suite also found the asynchronous serial
 cleanup test reading a non-atomic fake-port flag; the helper now uses an atomic
 close state. The complete validation matrix above then passed.
+
+PR review round 2/3 reviewed commit
+`d8c6a802c272ad13fcdf83a3adf0facfc3e37caa` and found one valid P2
+documentation issue: the current status identified PR #7, but the next-step
+section still told a resumed session to open a PR. The next step now directs
+future work to the existing PR and latest-head review. The documentation-only
+fix was checked with `git diff --check` and changed-relative-link inspection.
 
 No real serial PCI or TCP CNI was contacted. Serial driver behaviour, live
 disconnect timing, received byte traffic, and hardware capture remain
@@ -351,8 +358,8 @@ Any future variation must record:
 
 ## Current next step
 
-Commit and push Slice 2, open one PR against `main`, then await independent
-review of the submitted head. Do not start Slice 3.
+Continue the review/fix loop on existing PR #7 for its latest submitted head.
+Do not open a replacement PR or start Slice 3.
 
 
 ## Slice design status
