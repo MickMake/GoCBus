@@ -343,6 +343,9 @@ func decodePointToPoint(event wire.Event, header Header, body []byte) Packet {
 	if !ok || len(body) < 3+hopCount {
 		return unknown(event, "invalid point-to-point bridge routing data")
 	}
+	if body[0] == 0 {
+		return unknown(event, "bridged point-to-point packet requires a bridge address")
+	}
 	packet.Bridged = true
 	packet.BridgeAddress = body[0]
 	packet.Hops = append([]byte(nil), body[2:2+hopCount]...)

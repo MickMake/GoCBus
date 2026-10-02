@@ -6,15 +6,15 @@
 
 **Phase:** Slice 4 implementation
 
-**Implementation status:** Protocol packet review-round-2 fix validated; awaiting re-review of the latest head
+**Implementation status:** Blocked on review limit after validated round-3 fix; latest head unreviewed
 
 **Branch:** `v0.42.4-protocol-packets`
 
 **PR:** [#9](https://github.com/MickMake/GoCBus/pull/9)
 
-**Review round:** 2/3
+**Review round:** 3/3
 
-**Reviewed commit:** `a0d06d2a9412d3b6653cb489356614f6477e1893`
+**Reviewed commit:** `63b76b53c7b52dfea6bb32e9f611f026cffca3bb`
 
 Slices 1-3 were merged in PRs #6-#8. Slice 4 implements deterministic,
 side-effect-free packet encoding and decoding over the existing framing layer.
@@ -345,15 +345,15 @@ The final Slice 3 state commit was `638487a`; PR #8 was merged into `main` as
 
 Slice: **v0.42.4 - Protocol packets**
 
-State: **Review round 2 fix validated; awaiting re-review of the latest head**
+State: **Blocked on review limit after validated round-3 fix; latest head unreviewed**
 
 Branch: `v0.42.4-protocol-packets`
 
 PR: [#9](https://github.com/MickMake/GoCBus/pull/9)
 
-Review round: **2/3**
+Review round: **3/3**
 
-Reviewed commit: `a0d06d2a9412d3b6653cb489356614f6477e1893`
+Reviewed commit: `63b76b53c7b52dfea6bb32e9f611f026cffca3bb`
 
 Pinned reference verified at
 `cc0bdf3a25bd5646dd2d8e7d88a46fcd198f53a1`. Relevant reference behaviour was
@@ -427,6 +427,16 @@ prefix when re-encoded. GoCBus now preserves basic-mode non-device commands and
 extended-mode device-management commands as `Unknown` rather than returning a
 typed packet that cannot round-trip exactly. Focused fixtures cover both mode
 mismatches and exact wire preservation.
+
+Review round 3 found that bridged point-to-point input with bridge address zero
+decoded to a typed packet which the encoder rejected. Pinned libcbus also
+rejects a zero bridge address. GoCBus now preserves that input as `Unknown`, and
+a focused regression verifies the exact diagnostic and wire-byte round trip.
+The fix passed the full local validation suite. No actionable finding remains
+known, but the fix head is unreviewed. GitHub CI was pending at this state
+update and its live result remains authoritative. The three-round limit is
+exhausted; another review requires Mick's explicit approval of a new finite
+limit.
 
 No real serial PCI or TCP CNI was contacted. Application semantics, CAL/status
 interpretation, command/confirmation correlation, and executable packet
@@ -587,8 +597,9 @@ Any future variation must record:
 
 ## Current next step
 
-Commit and push the validated review-round-2 fix to PR #9, then request review
-of the new head. Do not start Slice 5.
+Push the validated review-round-3 handoff to PR #9 and verify required CI. Do
+not request or wait for a fourth review. Mick must decide the PR disposition or
+explicitly authorise a new finite review limit. Do not start Slice 5.
 
 
 ## Slice design status

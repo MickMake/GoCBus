@@ -199,6 +199,18 @@ func TestUnknownPacketsRemainObservable(t *testing.T) {
 	}
 }
 
+func TestDecodePreservesZeroBridgeAddressAsUnknown(t *testing.T) {
+	event := wire.Event{Kind: wire.Command, Data: []byte("\\46001B2030402101EDh\r")}
+	packet, ok := Decode(event).(*Unknown)
+	if !ok {
+		t.Fatalf("packet = %#v, want Unknown", packet)
+	}
+	if packet.Reason != "bridged point-to-point packet requires a bridge address" {
+		t.Fatalf("reason = %q", packet.Reason)
+	}
+	assertEncoded(t, packet, event.Data)
+}
+
 func TestDecodeThroughWireFramer(t *testing.T) {
 	framer, err := wire.NewFramer(wire.ToPCI)
 	if err != nil {
