@@ -41,10 +41,10 @@ GoCBus is intended to:
 
 **Early implementation.**
 
-Slices 1-3 provide the `GoCBus` executable, minimal JSON configuration,
+Slices 1-4 provide the `GoCBus` executable, minimal JSON configuration,
 deterministic raw traffic capture/replay, raw serial PCI or TCP CNI transport,
-and bounded incremental wire framing. Protocol packet decoding and PCI
-initialisation remain planned work.
+bounded incremental wire framing, and typed protocol packet encoding/decoding.
+Lighting interpretation and PCI initialisation remain planned work.
 
 See [docs/MigrationPlanning](docs/MigrationPlanning) for the design and migration planning.
 
@@ -95,7 +95,15 @@ responses and CR-terminated commands. It also identifies power-up, PCI-error,
 and confirmation responses without interpreting higher-level packets. Pending
 input is limited to 256 bytes; overflow and incomplete input are returned as
 observable diagnostic events. The current executable still operates as a raw
-capture path until the protocol slices add consumers for framed events.
+capture path until later integration slices add consumers for framed events.
+
+### Protocol packets
+
+`internal/protocol` translates complete wire events into typed
+point-to-multipoint, point-to-point, device-management, reset, power-up,
+PCI-error, and confirmation packets. Application SAL and CAL bytes remain raw
+for their owning later slices. Malformed or unsupported packets are returned as
+explicit unknown packets with their exact wire bytes preserved.
 
 ## Licence
 
