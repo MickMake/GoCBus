@@ -238,32 +238,62 @@ func TestEncodeRejectsInvalidPackets(t *testing.T) {
 		{
 			name: "priority",
 			packet: &PointToMultipoint{
-				Header: Header{Direction: wire.ToPCI, Priority: 4},
+				Header: Header{Direction: wire.ToPCI, Priority: 4, Checksum: true},
 			},
 		},
 		{
 			name: "confirmation code",
 			packet: &PointToMultipoint{
-				Header: Header{Direction: wire.ToPCI, Confirmation: 'a'},
+				Header: Header{Direction: wire.ToPCI, Checksum: true, Confirmation: 'a'},
 			},
 		},
 		{
 			name: "source confirmation",
 			packet: &PointToMultipoint{
-				Header: Header{Direction: wire.FromPCI, Confirmation: 'g'},
+				Header: Header{Direction: wire.FromPCI, Checksum: true, Confirmation: 'g'},
+			},
+		},
+		{
+			name: "point-to-multipoint command without checksum",
+			packet: &PointToMultipoint{
+				Header: Header{Direction: wire.ToPCI},
+			},
+		},
+		{
+			name: "point-to-multipoint response without checksum",
+			packet: &PointToMultipoint{
+				Header: Header{Direction: wire.FromPCI},
+			},
+		},
+		{
+			name: "point-to-point command without checksum",
+			packet: &PointToPoint{
+				Header: Header{Direction: wire.ToPCI},
+			},
+		},
+		{
+			name: "point-to-point response without checksum",
+			packet: &PointToPoint{
+				Header: Header{Direction: wire.FromPCI},
+			},
+		},
+		{
+			name: "device-management response without checksum",
+			packet: &DeviceManagement{
+				Header: Header{Direction: wire.FromPCI},
 			},
 		},
 		{
 			name: "bridge address",
 			packet: &PointToPoint{
-				Header:  Header{Direction: wire.ToPCI},
+				Header:  Header{Direction: wire.ToPCI, Checksum: true},
 				Bridged: true,
 			},
 		},
 		{
 			name: "hop count",
 			packet: &PointToPoint{
-				Header:        Header{Direction: wire.ToPCI},
+				Header:        Header{Direction: wire.ToPCI, Checksum: true},
 				Bridged:       true,
 				BridgeAddress: 1,
 				Hops:          make([]byte, 6),

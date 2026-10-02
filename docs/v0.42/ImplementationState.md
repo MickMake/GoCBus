@@ -6,13 +6,15 @@
 
 **Phase:** Slice 4 implementation
 
-**Implementation status:** Protocol packets implemented and validated; awaiting PR review
+**Implementation status:** Protocol packet review-round-1 fix validated; awaiting re-review of the latest head
 
 **Branch:** `v0.42.4-protocol-packets`
 
-**PR:** Not opened
+**PR:** [#9](https://github.com/MickMake/GoCBus/pull/9)
 
-**Review round:** 0/3
+**Review round:** 1/3
+
+**Reviewed commit:** `c149cab7a57147ceba2db47912d2108689a7995a`
 
 Slices 1-3 were merged in PRs #6-#8. Slice 4 implements deterministic,
 side-effect-free packet encoding and decoding over the existing framing layer.
@@ -343,13 +345,15 @@ The final Slice 3 state commit was `638487a`; PR #8 was merged into `main` as
 
 Slice: **v0.42.4 - Protocol packets**
 
-State: **Implemented and validated; awaiting PR review**
+State: **Review round 1 fix validated; awaiting re-review of the latest head**
 
 Branch: `v0.42.4-protocol-packets`
 
-PR: To be opened
+PR: [#9](https://github.com/MickMake/GoCBus/pull/9)
 
-Review round: **0/3**
+Review round: **1/3**
+
+Reviewed commit: `c149cab7a57147ceba2db47912d2108689a7995a`
 
 Pinned reference verified at
 `cc0bdf3a25bd5646dd2d8e7d88a46fcd198f53a1`. Relevant reference behaviour was
@@ -407,6 +411,15 @@ typed packets would have normalised their flags and broken byte-for-byte round
 trips. They are now preserved as `Unknown` packets, with focused regression
 fixtures. Self-review also added typed-nil encoder validation so callers receive
 an error instead of a panic.
+
+Review round 1 found that the encoder allowed checksum-free regular packets
+which its decoder necessarily rejected as malformed. Encoding now requires a
+checksum for point-to-multipoint, point-to-point, and PCI-originated
+device-management packets while retaining the documented checksum-free basic
+device-management command. Focused tests cover every affected packet direction.
+The fix self-review also corrected older invalid-input fixtures so they continue
+to exercise their named validations rather than stopping at the new checksum
+guard.
 
 No real serial PCI or TCP CNI was contacted. Application semantics, CAL/status
 interpretation, command/confirmation correlation, and executable packet
@@ -560,8 +573,8 @@ Any future variation must record:
 
 ## Current next step
 
-Review the complete Slice 4 diff, then commit, push, and open its PR against
-`main`. Do not start Slice 5.
+Commit and push the validated review-round-1 fix to PR #9, then request review
+of the new head. Do not start Slice 5.
 
 
 ## Slice design status

@@ -375,6 +375,9 @@ func encodeRegular(header Header, destination byte, dp bool, body []byte, basic 
 	if header.Direction != wire.FromPCI && header.Direction != wire.ToPCI {
 		return nil, fmt.Errorf("invalid packet direction: %d", header.Direction)
 	}
+	if !header.Checksum && !(header.Direction == wire.ToPCI && basic && dp) {
+		return nil, errors.New("regular packet requires a checksum")
+	}
 	if header.Priority > Priority1 {
 		return nil, fmt.Errorf("invalid priority class: %d", header.Priority)
 	}
