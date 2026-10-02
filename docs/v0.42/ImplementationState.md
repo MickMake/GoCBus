@@ -6,15 +6,15 @@
 
 **Phase:** Slice 4 implementation
 
-**Implementation status:** Protocol packet review-round-1 fix validated; awaiting re-review of the latest head
+**Implementation status:** Protocol packet review-round-2 fix validated; awaiting re-review of the latest head
 
 **Branch:** `v0.42.4-protocol-packets`
 
 **PR:** [#9](https://github.com/MickMake/GoCBus/pull/9)
 
-**Review round:** 1/3
+**Review round:** 2/3
 
-**Reviewed commit:** `c149cab7a57147ceba2db47912d2108689a7995a`
+**Reviewed commit:** `a0d06d2a9412d3b6653cb489356614f6477e1893`
 
 Slices 1-3 were merged in PRs #6-#8. Slice 4 implements deterministic,
 side-effect-free packet encoding and decoding over the existing framing layer.
@@ -345,15 +345,15 @@ The final Slice 3 state commit was `638487a`; PR #8 was merged into `main` as
 
 Slice: **v0.42.4 - Protocol packets**
 
-State: **Review round 1 fix validated; awaiting re-review of the latest head**
+State: **Review round 2 fix validated; awaiting re-review of the latest head**
 
 Branch: `v0.42.4-protocol-packets`
 
 PR: [#9](https://github.com/MickMake/GoCBus/pull/9)
 
-Review round: **1/3**
+Review round: **2/3**
 
-Reviewed commit: `c149cab7a57147ceba2db47912d2108689a7995a`
+Reviewed commit: `a0d06d2a9412d3b6653cb489356614f6477e1893`
 
 Pinned reference verified at
 `cc0bdf3a25bd5646dd2d8e7d88a46fcd198f53a1`. Relevant reference behaviour was
@@ -420,6 +420,13 @@ device-management command. Focused tests cover every affected packet direction.
 The fix self-review also corrected older invalid-input fixtures so they continue
 to exercise their named validations rather than stopping at the new checksum
 guard.
+
+Review round 2 found that command decoding did not retain the basic/extended
+mode distinction, allowing accepted packets to gain or lose the extended-mode
+prefix when re-encoded. GoCBus now preserves basic-mode non-device commands and
+extended-mode device-management commands as `Unknown` rather than returning a
+typed packet that cannot round-trip exactly. Focused fixtures cover both mode
+mismatches and exact wire preservation.
 
 No real serial PCI or TCP CNI was contacted. Application semantics, CAL/status
 interpretation, command/confirmation correlation, and executable packet
@@ -564,6 +571,13 @@ Slice 4's encode/decode objective and is covered by
 `TestPointToPointBridgedRoundTrip`; it does not add routing policy or CAL
 semantics.
 
+Pinned libcbus treats prefix-less non-device commands as direct CAL and accepts
+extended-mode device-management commands, but its returned objects do not
+retain enough mode information for exact re-encoding. Direct CAL interpretation
+belongs to later slices, so GoCBus preserves both noncanonical mode/type forms
+as `Unknown` with their complete original `wire.Event`. This prevents silent
+prefix changes and is covered by `TestUnknownPacketsRemainObservable`.
+
 Any future variation must record:
 
 1. Original design expectation.
@@ -573,7 +587,7 @@ Any future variation must record:
 
 ## Current next step
 
-Commit and push the validated review-round-1 fix to PR #9, then request review
+Commit and push the validated review-round-2 fix to PR #9, then request review
 of the new head. Do not start Slice 5.
 
 

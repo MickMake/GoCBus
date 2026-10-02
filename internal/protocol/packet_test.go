@@ -182,6 +182,8 @@ func TestUnknownPacketsRemainObservable(t *testing.T) {
 		{Kind: wire.Response, Data: []byte("05063801BC\r\n")},   // routing data
 		{Kind: wire.Response, Data: []byte("0D063800B5\r\n")},   // reserved flag bit
 		{Kind: wire.Response, Data: []byte("A504210038FE\r\n")}, // DP with wrong address type
+		{Kind: wire.Command, Data: []byte("0538000108BAg\r")},   // regular packet in basic mode
+		{Kind: wire.Command, Data: []byte("\\A321003804g\r")},   // device management in extended mode
 		{Kind: wire.Incomplete, Data: []byte("0506")},
 	}
 

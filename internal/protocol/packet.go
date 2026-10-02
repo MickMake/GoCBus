@@ -283,6 +283,9 @@ func decodeRegular(event wire.Event, direction wire.Direction) Packet {
 	if flags&0x18 != 0 {
 		return unknown(event, "packet uses reserved flags")
 	}
+	if direction == wire.ToPCI && basic != dp {
+		return unknown(event, "packet uses a noncanonical command mode")
+	}
 	header := Header{
 		Direction:    direction,
 		Priority:     Priority((flags >> 6) & 0x03),
